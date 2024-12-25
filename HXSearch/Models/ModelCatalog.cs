@@ -587,9 +587,12 @@
         HD2_AppDSPFlowSplitXOver,
         HD2_AppDSPFlowSplitDyn,
         HD2_AppDSPFlow1Input,
+        HD2_AppDSPFlow2Input,
         HD2_AppDSPFlowOutput,
         HD2_AppDSPFlowJoin,
-        Implied,
+        ImpliedSplit,
+        ImpliedJoin,
+        Dummy,
         Unknown,
     }
     public enum ModelCategory
@@ -1791,13 +1794,17 @@
             },
             { "HD2_AppDSPFlow1Input", new Model("HD2_AppDSPFlow1Input", ModelId.HD2_AppDSPFlow1Input, ModelCategory.Input, "Input", "Input")
             },
-            { "HD2_AppDSPFlow2Input", new Model("HD2_AppDSPFlow2Input", ModelId.HD2_AppDSPFlow1Input, ModelCategory.Input, "Input", "Input")
+            { "HD2_AppDSPFlow2Input", new Model("HD2_AppDSPFlow2Input", ModelId.HD2_AppDSPFlow2Input, ModelCategory.Input, "Input", "Input")
             },
             { "HD2_AppDSPFlowOutput", new Model("HD2_AppDSPFlowOutput", ModelId.HD2_AppDSPFlowOutput, ModelCategory.Output, "Output", "Output")
             },
             { "HD2_AppDSPFlowJoin", new Model("HD2_AppDSPFlowJoin", ModelId.HD2_AppDSPFlowJoin, ModelCategory.Merge, "Merge", "Merge")
             },
-            { "Implied", new Model("Implied", ModelId.Implied, ModelCategory.Implied, "Implied", "Implied")
+            { "Dummy", new Model("Dummy", ModelId.Dummy, ModelCategory.Implied, "Dummy", "Dummy")
+            },
+            { "ImpliedSplit", new Model("ImpliedSplit", ModelId.ImpliedSplit, ModelCategory.Split, "Implied Split", "Implied Split")
+            },
+            { "ImpliedJoin", new Model("ImpliedJoin", ModelId.ImpliedJoin, ModelCategory.Merge, "Implied Join", "Implied Join")
             },
             { "Unknown", new Model("Unknown", ModelId.Unknown, ModelCategory.Unknown, "Unknown", "Unknown")
             },

@@ -41,39 +41,57 @@ namespace HXSearch
         }
         private void CloseOpenSplits(AdjacencyGraph<Node, Edge<Node>> gr)
         {
-            bool needToCheckAgain = false;
 
+            bool needToCheckAgain;
             do
             {
+                needToCheckAgain = false;
                 PropagateSplits();
                 List<Node> leafs = [.. gr.Vertices.Where(nd => null != nd.Split && 0 == gr.OutDegree(nd)).OrderBy(n => n.Split.SerialNumber)];
 
                 while (null != leafs && leafs.Count >= 2)
                 {
-                    if (leafs[0].Split.SerialNumber == leafs[0].Split.SerialNumber)
+                    if (leafs[0].Split.SerialNumber == leafs[1].Split.SerialNumber)
                     {
                         InsertJoin([leafs[0], leafs[1]]);
                         leafs.RemoveRange(0, 2);
                         needToCheckAgain = true;
                     }
+                    else
+                    {
+                        leafs.RemoveAt(0);
+                    }
                 }
-            } while (!needToCheckAgain);
+            } while (needToCheckAgain);
 
         }
         private void InsertJoin(Node[] nodes)
         {
             // add a join to the graph, inserting it between each Node in the
-            // given array of nodes and those nodes downstream targets
+            // given array of nodes and those nodes downstream targets. And when
+            // we insert a join we also insert an implied dummy node after it,
+            // so that when we propagate split back pointers there will be
+            // something after the join to represent the end of a split path.
+            // That will happen when the preset ends with three or more
+            // unterminated parallel paths (see "Unicorn in a Box" preset). In
+            // that scenario we have to close the first one, then close the
+            // second one just behind the first one.
 
-            Node j = NodeFactory.Instance.NewNode(new HlxJoin());
+            Node j = NodeFactory.Instance.NewNode(new HlxJoin() { model = ModelId.ImpliedJoin.ToString() });
+            Node dummy = NodeFactory.Instance.NewNode(new HlxBlock() { model = ModelId.Dummy.ToString() });
+            presetGraph.AddVerticesAndEdge(new Edge<Node>(j, dummy));
+
             foreach (Node n in nodes)
             {
-                presetGraph.AddVerticesAndEdge(new Edge<Node>(n, j)); // add J as a downstream target for this node
-                foreach (Edge<Node> e in presetGraph.OutEdges(n))
-                {
-                    presetGraph.RemoveEdge(e); // remove the link from the node to a downstream target
-                    presetGraph.AddVerticesAndEdge(new Edge<Node>(j, e.Target)); // create a new edge from J to this downstreadm target
-                }
+                List<Edge<Node>> originalOutEdges = [.. presetGraph.OutEdges(n)];
+
+                // remove current downstream links from the node
+                foreach (Edge<Node> e in originalOutEdges) presetGraph.RemoveEdge(e);
+
+                presetGraph.AddVerticesAndEdge(new Edge<Node>(n, j)); // J becomes the new downstream target for this node
+
+                // add the original downstream nodes as J's downstream targets
+                foreach (Edge<Node> e in originalOutEdges) presetGraph.AddVerticesAndEdge(new Edge<Node>(dummy, e.Target));
             }
         }
         private void PropagateSplits()
@@ -116,8 +134,19 @@ namespace HXSearch
                         ConnectOutputToInput(audioOutGraph: audioOutGraph, audioOutNode: audioOutNode, audioInGraph: audioInGraph, inputName: "HD2_AppDSPFlow12nput");
                         break;
                     case 4:
-                        ConnectOutputToInput(audioOutGraph: audioOutGraph, audioOutNode: audioOutNode, audioInGraph: audioInGraph, inputName: "HD2_AppDSPFlow1Input");
-                        ConnectOutputToInput(audioOutGraph: audioOutGraph, audioOutNode: audioOutNode, audioInGraph: audioInGraph, inputName: "HD2_AppDSPFlow2Input");
+
+                        // The output routes to both dsp1 inputs. This is a
+                        // "hidden" split in terms of aggregate signal path.
+                        // It's not a split that shows up in an SABJ topology
+                        // inside a single DSP but it does in fact introduce a
+                        // parallel path in the aggregate signal chain. So we
+                        // need to add a split here before connecting to the
+                        // dsp1 inputs
+                        Node impliedSplit = NodeFactory.Instance.NewNode(new HlxSplit() { model = ModelId.ImpliedSplit.ToString() });
+                        audioOutGraph.AddVerticesAndEdge(new Edge<Node>(audioOutNode, impliedSplit));
+
+                        ConnectOutputToInput(audioOutGraph: audioOutGraph, audioOutNode: impliedSplit, audioInGraph: audioInGraph, inputName: ModelId.HD2_AppDSPFlow1Input.ToString());
+                        ConnectOutputToInput(audioOutGraph: audioOutGraph, audioOutNode: impliedSplit, audioInGraph: audioInGraph, inputName: ModelId.HD2_AppDSPFlow2Input.ToString());
                         break;
                     default:
                         break;
