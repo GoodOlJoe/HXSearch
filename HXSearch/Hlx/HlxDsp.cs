@@ -44,11 +44,11 @@ namespace HXSearch.Hlx
             if (null != split) Split = split; split = null;
             if (null != join) Join = join; join = null;
 
-            if (null != inputA) { Inputs.Add(inputA); inputA = null; }
-            if (null != inputB) { Inputs.Add(inputB); inputB = null; }
+            if (null != inputA) { Inputs.Add(inputA); Inputs[0].inputNum = 0; inputA = null; }
+            if (null != inputB) { Inputs.Add(inputB); Inputs[1].inputNum = 1; inputB = null; }
 
-            if (null != outputA) { Outputs.Add(outputA); outputA = null; }
-            if (null != outputB) { Outputs.Add(outputB); outputB = null; }
+            if (null != outputA) { Outputs.Add(outputA); Outputs[0].outputNum = 0; outputA = null; }
+            if (null != outputB) { Outputs.Add(outputB); Outputs[1].outputNum = 1; outputB = null; }
 
             if (null != block0) { Blocks.Add(block0); block0 = null; }
             if (null != block1) { Blocks.Add(block1); block1 = null; }

@@ -5,6 +5,7 @@ using QuikGraph.Algorithms;
 using QuikGraph.Algorithms.Search;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -17,27 +18,24 @@ namespace HXSearch
     internal class Preset
     {
         //private HlxFile HlxFile;
+        public readonly string Name = "";
+        public readonly string FQN = "";
         private readonly List<Dsp> Dsp = new(2); // populated gr the HlxDsp data in the Json file
-        private readonly AdjacencyGraph<Node, Edge<Node>> presetGraph;
-        public Preset(string FQN)
+        private readonly AdjacencyGraph<Node, Edge<Node>> presetGraph = new();
+        public Preset(string fqn)
         {
+            FQN = fqn;
             HlxFile hlx = HlxFile.Load(FQN);
-            if (!(null == hlx)
-                //&&  hlx.Loaded 
-                //&& null != hlx.data 
-                //&& null != hlx.data.tone 
-                //&& null != hlx.data.tone.global
-                )
+            if (null != hlx)
             {
+                Name = hlx.data.meta.name;
                 for (int d = 0; d < hlx.data.tone.Dsp.Count; d++)
                     Dsp.Add(new Dsp(d, hlx.data.tone.global.Topology[d], hlx.data.tone.Dsp[d]));
 
                 presetGraph = Dsp[0].DspGraph;
-                AdjacencyGraph<Node, Edge<Node>> dsp1graph = Dsp[1].DspGraph;
-                ConnectGraphs(audioOutGraph: presetGraph, audioInGraph: dsp1graph); // connect audio outs to audio ins
+                ConnectGraphs(audioOutGraph: presetGraph, audioInGraph: Dsp[1].DspGraph); // connect audio outs to audio ins
                 CloseOpenSplits(presetGraph);
             }
-
         }
         private void CloseOpenSplits(AdjacencyGraph<Node, Edge<Node>> gr)
         {
@@ -179,7 +177,7 @@ namespace HXSearch
         // source graph to the correpsonding "replacement" node in the target
         // graph. So once we have created the replacement node, we use it when
         // creating subsequent edges
-        private Dictionary<int, Node> copiedNodesMap = new(100);
+        private readonly Dictionary<int, Node> copiedNodesMap = new(100);
 
         private void CopyToPresetGraphStartingAt(
             AdjacencyGraph<Node, Edge<Node>> sourceGraph,
@@ -258,9 +256,94 @@ namespace HXSearch
 
         public List<string> GraphToStrings()
         {
+            // show all graph contents
             List<string> lines = new(presetGraph.EdgeCount);
             foreach (var v in presetGraph.Roots<Node, Edge<Node>>()) lines.Add($"Root {v}");
             foreach (Edge<Node> e in presetGraph.Edges) lines.Add(e.ToString());
+            return lines;
+        }
+
+        private const int indentSize = 4;
+        private const string indentStock = "                                                                                                                        ";
+        private Node? GetNext(List<Edge<Node>>? next, int index) => (null != next && index < next.Count) ? next[index].Target : null;
+        private string indent(int level) { return indentStock[0..(level * indentSize)]; }
+        public List<string> DisplayAll(bool showConnections)
+        {
+            int splitDepth = 0;
+            int lvl = 1;
+
+            List<string> lines = new(presetGraph.EdgeCount * 2)
+            {
+                "",
+                "",
+                $"Preset display name: {Name}",
+                $"Preset file:         {FQN}",
+                $"Topology:            {Dsp[0].Topology} {Dsp[1].Topology}"
+            };
+
+            // If the graph is correctly constructed and the preset is as
+            // expected, the only roots will be non-zero inputs, which are true
+            // external inputs. But we defensively filter the roots with these
+            // conditions anyway
+            foreach (Node rootInput in presetGraph.Roots().Where(n => n.Block is HlxInput inp && 0 != inp.input))
+            {
+                HlxInput? inp = rootInput.Block as HlxInput;
+                lines.Add("");
+                lines.Add($"=== dsp{inp?.dspNum} input{inp?.inputNum} ===============");
+                lines.Add("");
+
+                Node? n = rootInput;
+
+                Node? pathBHead = null;
+                while (null != n)
+                {
+                    List<Edge<Node>> next = [.. presetGraph.OutEdges(n).ToList()];
+
+                    if (n.Block is HlxSplit split)
+                    {
+                        //lines.Add($"{indent(lvl)}parallel ( {n}");
+                        lines.Add($"{indent(lvl)}parallel (");
+                        pathBHead = GetNext(next, 1);
+                        lvl++;
+                        splitDepth++;
+                        n = GetNext(next, 0);
+                    }
+                    else if (n.Block is HlxJoin joinFirstTime && null != pathBHead) // we're hitting the join the first time
+                    {
+                        //lines.Add($"{indent(lvl)}--- and --- {n}");
+                        lines.Add($"{indent(lvl)}--- and ---");
+                        n = pathBHead;
+                        pathBHead = null;
+                    }
+                    else if (n.Block is HlxJoin joinSecondTime) // no path to backtrack to, we're hitting the join after traversing our split's second path
+                    {
+                        if (splitDepth > 0)
+                        {
+                            // we're exiting a parallel segment
+                            lvl--;
+                            lines.Add($"{indent(lvl)}) {n}");
+                            splitDepth--;
+                        }
+                        //else we're not in a split, it's just a join from
+                        //another path coming. It doesn't affect the signal path
+                        //we're currently on...nothing to display, just proceed
+
+                        n = GetNext(next, 0);
+                    }
+                    else if (n.Model.Category == ModelCategory.Dummy)
+                    {
+                        n = GetNext(next, 0);
+                    }
+                    else
+                    {
+                        if (showConnections || !(n.Block is HlxConnector))
+                            lines.Add($"{indent(lvl)}{n}");
+                        n = GetNext(next, 0);
+                    }
+                }
+
+            }
+            lines.Add("");
             return lines;
         }
     }

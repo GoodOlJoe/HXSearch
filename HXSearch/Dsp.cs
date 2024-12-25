@@ -20,6 +20,10 @@ namespace HXSearch
             Topology = topology;
             DspNum = dspNum;
             DspGraph = BuildDspGraph(dspNum, topology, hlxDsp);
+            hlxDsp.Inputs[0].dspNum = dspNum;
+            hlxDsp.Inputs[1].dspNum = dspNum;
+            hlxDsp.Outputs[0].dspNum = dspNum;
+            hlxDsp.Outputs[1].dspNum = dspNum;
         }
         private static AdjacencyGraph<Node, Edge<Node>> BuildDspGraph(int dspNum, string topology, HlxDsp hlxDsp)
         {

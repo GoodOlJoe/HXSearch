@@ -1100,7 +1100,7 @@ $CategoryContents = @"
 # 12 USB 5/6 *
 
 $doSpecificFiles = $true
-$showConnections = $false
+$showConnections = $true
 if ( $doSpecificFiles ) {
     
     (

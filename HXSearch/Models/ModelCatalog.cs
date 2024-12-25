@@ -617,6 +617,7 @@
         Input,
         Output,
         Implied,
+        Dummy,
         Unknown
     };
     internal static class ModelCatalog
@@ -1800,7 +1801,7 @@
             },
             { "HD2_AppDSPFlowJoin", new Model("HD2_AppDSPFlowJoin", ModelId.HD2_AppDSPFlowJoin, ModelCategory.Merge, "Merge", "Merge")
             },
-            { "Dummy", new Model("Dummy", ModelId.Dummy, ModelCategory.Implied, "Dummy", "Dummy")
+            { "Dummy", new Model("Dummy", ModelId.Dummy, ModelCategory.Dummy, "Dummy", "Dummy")
             },
             { "ImpliedSplit", new Model("ImpliedSplit", ModelId.ImpliedSplit, ModelCategory.Split, "Implied Split", "Implied Split")
             },
