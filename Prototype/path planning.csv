@@ -1,0 +1,60 @@
+,,,,
+DSP 0 Output A,not 234,,,,,
+DSP 0 Output B,not 234,,,,,
+DSP 0 topology,A,A,A,A,A, 							AB,AB,AB,AB,AB, 							SABJ,SABJ,SABJ,SABJ,SABJ, 	SAB,SAB,SAB,SAB,SAB,	ABJ,ABJ,ABJ,ABJ,ABJ,
+DSP 1 topology,A,AB,SABJ,SAB,ABJ,					A,AB,SABJ,SAB,ABJ, 							A,AB,SABJ,SAB,ABJ, 			A,AB,SABJ,SAB,ABJ, 		A,AB,SABJ,SAB,ABJ,
+resulting signatures,,,,,,
+path 1,a0,a0,a0,a0,a0,								a0,a0,a0,a0,a0,								s0 [a0 b0] j0,
+path 2,a1,a1,s1 [a1 b1] j1,s1 [a1 b1],[a1 b1] j1,	b0,b0,b0,b0,b0,								
+path 3,,b1,,,,										a1,a1,s1 [a1 b1] j1,s1 [a1 b1],[a1 b1] j1,
+path 4,,,,,,										,b1,,,,
+
+
+Single DSP Topology
+	A
+		a		
+	AB
+		a
+		b
+	SABJ
+		s [a b] j
+	SAB
+		s [a b]
+	ABJ
+		[a b] j
+
+DSP-Spanning Topology
+
+	dsp0.OutputA -> terminal
+		dsp0.OutputB -> none or terminal (see single DSP topology)
+		dsp0.OutputB -> dsp1.Input2A
+		dsp0.OutputB -> dsp1.Input2B
+		dsp0.OutputB -> dsp1.Input2A+B
+
+	dsp0.OutputA -> dsp1.Input2A
+		dsp0.OutputB -> none or terminal
+		dsp0.OutputB -> dsp1.Input2A
+		dsp0.OutputB -> dsp1.Input2B
+		dsp0.OutputB -> dsp1.Input2A+B
+
+	dsp0.OutputA -> dsp1.Input2B
+		dsp0.OutputB -> none or terminal
+		dsp0.OutputB -> dsp1.Input2A
+		dsp0.OutputB -> dsp1.Input2B
+		dsp0.OutputB -> dsp1.Input2A+B
+
+	dsp0.OutputA -> dsp1.Input2A+B
+		dsp0.OutputB -> none or terminal
+		dsp0.OutputB -> dsp1.Input2A
+		dsp0.OutputB -> dsp1.Input2B
+		dsp0.OutputB -> dsp1.Input2A+B
+
+
+    Key thought that's part of this -- to hook together chains across DSPs, dsp0
+    paths need to be tied to/derivable from OUTPUTS and dsp1 paths need to be
+    tied to / derivable from INPUTS
+
+|Output|Input|
+|-|-|
+|Out1A||
+|Out1B||
