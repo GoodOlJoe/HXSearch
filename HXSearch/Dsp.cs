@@ -4,6 +4,7 @@ using QuikGraph.Collections;
 using QuikGraph.Algorithms;
 using QuikGraph.Algorithms.Search;
 using System.Diagnostics.Tracing;
+using HXSearch.Models;
 
 namespace HXSearch
 {
@@ -19,143 +20,180 @@ namespace HXSearch
 
             Topology = topology;
             DspNum = dspNum;
-            DspGraph = BuildDspGraph(dspNum, topology, hlxDsp);
+            DspGraph = BuildDspGraphByTopology(topology, hlxDsp);
             hlxDsp.Inputs[0].dspNum = dspNum;
             hlxDsp.Inputs[1].dspNum = dspNum;
             hlxDsp.Outputs[0].dspNum = dspNum;
             hlxDsp.Outputs[1].dspNum = dspNum;
         }
-        private static AdjacencyGraph<Node, Edge<Node>> BuildDspGraph(int dspNum, string topology, HlxDsp hlxDsp)
+        private static AdjacencyGraph<Node, Edge<Node>> BuildDspGraphByTopology(string topology, HlxDsp hlxDsp)
         {
             var graph = new AdjacencyGraph<Node, Edge<Node>>();
+            List<HlxBlock> blocks = hlxDsp.Blocks.OrderBy(b => b.position).ToList();
 
-            AddInputToGraph(graph, dspNum, topology, inputNum: 0, topology.Contains('S'), topology.Contains('J'), hlxDsp);
-
-            if (topology.StartsWith("AB")) // only AB and ABJ have separate chains starting on the second input
-                AddInputToGraph(graph, dspNum, topology, inputNum: 1, hasSplit: false, hasJoin: false, hlxDsp);
-
-            return graph;
-        }
-        private static void AddStraightPathBetweenNodes(AdjacencyGraph<Node, Edge<Node>> graph, Node? head, List<HlxBlock>? blocks, Node? tail)
-        {
-            if (null == blocks) return;
-            Node? source = head;
-            foreach (HlxBlock blk in blocks)
-            {
-                Node target = NodeFactory.Instance.NewNode(blk);
-                if (null != source && null != tail)
-                    graph.AddVerticesAndEdge(new Edge<Node>(source, target));
-                source = target;
-            }
-            if (null != source && null != tail)
-                graph.AddVerticesAndEdge(new Edge<Node>(source, tail));
-        }
-        private static void AddInputToGraph(AdjacencyGraph<Node, Edge<Node>> graph, int dspNum, string topology, int inputNum, bool hasSplit, bool hasJoin, HlxDsp hlxDsp)
-        {
-            // these inits can be confusing, but we're just data-proofing again
-            // the hlx file not having a split or join block in the dsp. The
-            // hasSplit/hasJoin values are set by the caller based on dsp
-            // topology. But these blocks WILL be present in a device supporting
-            // two paths on one input. But remember the split/join being present
-            // doesn't mean the topology actually uses a split or join.
-            int splitPos = 0;
-            if (null == hlxDsp.Split) hasSplit = false;
-            else splitPos = hlxDsp.Split.position;
-
-            int joinPos = 0;
-            if (null == hlxDsp.Join) hasJoin = false;
-            else joinPos = hlxDsp.Join.position;
-
-            // start with a list of all blocks in this DSP. This just makes the
-            // algorithm easier to follow because I can remove blocks from this
-            // last as I add them to the graph, so fewer limiting conditions.
-            // Also I can order by position once and not have to do it each time
-            // when I move blocks to the graph
-            List<HlxBlock> allBlocks = new(hlxDsp.Blocks.Count);
-            foreach (HlxBlock blk in hlxDsp.Blocks.OrderBy(b => b.position))
-                allBlocks.Add(blk);
-
-            Node input = NodeFactory.Instance.NewNode(hlxDsp.Inputs[inputNum]);
-            Node source = input; // where to attach whatever block is next
-
-            // S segment: add blocks up to and including the split
-            Node? split;
-            if (hasSplit && null != hlxDsp.Split)
-            {
-                List<HlxBlock> usedBlocks = new(hlxDsp.Blocks.Count);
-                foreach (HlxBlock blk in allBlocks.Where(b => 0 == b.path && b.position < splitPos))
-                {
-                    Node target = NodeFactory.Instance.NewNode(blk);
-                    usedBlocks.Add(blk);
-                    graph.AddVerticesAndEdge(new Edge<Node>(source, target));
-                    source = target;
-                }
-                split = NodeFactory.Instance.NewNode(hlxDsp.Split);
-                graph.AddVerticesAndEdge(new Edge<Node>(source, split));
-                foreach (HlxBlock blk in usedBlocks) allBlocks.Remove(blk);
-            }
-
-            // J segment: add the join and blocks after it
-            Node? join;
-            if (hasJoin && null != hlxDsp.Join)
-            {
-                join = NodeFactory.Instance.NewNode(hlxDsp.Join);
-                source = join;
-                List<HlxBlock> usedBlocks = new(hlxDsp.Blocks.Count);
-                foreach (HlxBlock blk in allBlocks.Where(b => 0 == b.path && b.position >= joinPos))
-                {
-                    Node target = NodeFactory.Instance.NewNode(blk);
-                    usedBlocks.Add(blk);
-                    graph.AddVerticesAndEdge(new Edge<Node>(source, target));
-                    source = target;
-                }
-                foreach (HlxBlock blk in usedBlocks) allBlocks.Remove(blk);
-            }
-
-            // Anything remaining on allBlocks is on the A (path 0) or B (path
-            // 1) segments. How they interconnect depends on the topology
-
-            // these will actually already have their correct value if we use
-            // them below, but the compiler's static analysis thinks they might
-            // be uninitialized if I don't do this here
-            split = graph.Vertices.Where(n => n.Model.Category == Models.ModelCategory.Split).FirstOrDefault();
-            join = graph.Vertices.Where(n => n.Model.Category == Models.ModelCategory.Merge).FirstOrDefault();
-
+            Node input;
+            Node output;
+            Node split;
+            Node join;
             switch (topology)
             {
                 case "A":
-                case "AB":
-                    Node output = NodeFactory.Instance.NewNode(hlxDsp.Outputs[inputNum]);
-                    AddStraightPathBetweenNodes(graph, input, allBlocks.Where(blk => inputNum == blk.path).ToList(), output);
+                    input = NodeFactory.Instance.NewNode(hlxDsp.Inputs[0]);
+                    output = NodeFactory.Instance.NewNode(hlxDsp.Outputs[0]);
+                    AddStraightPathBetweenNodes(graph, input, blocks, output);
                     break;
 
-                case "SAB":
-                    for (int path = 0; path <= 1; path++)
+                case "AB":
+                    foreach (int path in (int[])[0, 1])
                     {
+                        input = NodeFactory.Instance.NewNode(hlxDsp.Inputs[path]);
                         output = NodeFactory.Instance.NewNode(hlxDsp.Outputs[path]);
-                        AddStraightPathBetweenNodes(graph, split, allBlocks.Where(blk => path == blk.path).ToList(), output);
+                        AddStraightPathBetweenNodes(graph, input, blocks.Where(b => path == b.path), output);
                     }
                     break;
 
                 case "SABJ":
-                    for (int path = 0; path <= 1; path++)
-                    {
-                        output = NodeFactory.Instance.NewNode(hlxDsp.Outputs[path]);
-                        AddStraightPathBetweenNodes(graph, split, allBlocks.Where(blk => path == blk.path).ToList(), join);
-                    }
+                    input = NodeFactory.Instance.NewNode(hlxDsp.Inputs[0]);
+                    output = NodeFactory.Instance.NewNode(hlxDsp.Outputs[0]);
+                    split = NodeFactory.Instance.NewNode(hlxDsp.Split);
+                    join = NodeFactory.Instance.NewNode(hlxDsp.Join);
+
+                    AddStraightPathBetweenNodes(graph, input, blocks.Where(b => 0 == b.path && b.position < hlxDsp.Split.position), split);
+                    AddStraightPathBetweenNodes(graph, join, blocks.Where(b => 0 == b.path && b.position >= hlxDsp.Join.position), output);
+                    AddStraightPathBetweenNodes(graph, split, blocks.Where(b => 0 == b.path && b.position >= hlxDsp.Split.position && b.position < hlxDsp.Join.position), join);
+                    AddStraightPathBetweenNodes(graph, split, blocks.Where(b => 1 == b.path), join);
                     break;
 
-                default:
+                case "SAB":
+                    input = NodeFactory.Instance.NewNode(hlxDsp.Inputs[0]);
+                    split = NodeFactory.Instance.NewNode(hlxDsp.Split);
+                    Node output0 = NodeFactory.Instance.NewNode(hlxDsp.Outputs[0]);
+                    Node output1 = NodeFactory.Instance.NewNode(hlxDsp.Outputs[1]);
+
+                    AddStraightPathBetweenNodes(graph, input, blocks.Where(b => 0 == b.path && b.position < hlxDsp.Split.position), split);
+                    AddStraightPathBetweenNodes(graph, split, blocks.Where(b => 0 == b.path && b.position >= hlxDsp.Split.position), output0);
+                    AddStraightPathBetweenNodes(graph, split, blocks.Where(b => 1 == b.path), output1);
                     break;
 
+                case "ABJ":
+                    Node input0 = NodeFactory.Instance.NewNode(hlxDsp.Inputs[0]);
+                    Node input1 = NodeFactory.Instance.NewNode(hlxDsp.Inputs[1]);
+                    output = NodeFactory.Instance.NewNode(hlxDsp.Outputs[0]);
+                    join = NodeFactory.Instance.NewNode(hlxDsp.Join);
+
+                    AddStraightPathBetweenNodes(graph, input0, blocks.Where(b => 0 == b.path && b.position < hlxDsp.Join.position), join);
+                    AddStraightPathBetweenNodes(graph, input1, blocks.Where(b => 1 == b.path), join);
+                    AddStraightPathBetweenNodes(graph, join, blocks.Where(b => 0 == b.path && b.position >= hlxDsp.Join.position), output);
+                    break;
             }
+            return graph;
+        }
+        private static void AddStraightPathBetweenNodes(AdjacencyGraph<Node, Edge<Node>> graph, Node? head, IEnumerable<HlxBlock>? blocks, Node? tail)
+        {
+            if (null == head && null == blocks) return; // all we have is a tail, nothing to do
+            if (null == tail && null == blocks) return; // all we have is a head, nothing to do
 
+            Node? source = head;
+
+            if (null != blocks)
+                foreach (HlxBlock blk in blocks)
+                {
+                    Node target = NodeFactory.Instance.NewNode(blk);
+                    if (null != source && null != tail)
+                        graph.AddVerticesAndEdge(new Edge<Node>(source, target));
+                    source = target;
+                }
+
+            if (null != source && null != tail)
+                graph.AddVerticesAndEdge(new Edge<Node>(source, tail));
         }
         public List<string> GraphToStrings()
         {
             List<string> lines = new(DspGraph.EdgeCount);
             foreach (var v in DspGraph.Roots<Node, Edge<Node>>()) lines.Add($"Root {v}");
             foreach (Edge<Node> e in DspGraph.Edges) lines.Add(e.ToString());
+            return lines;
+        }
+        private const int indentSize = 4;
+        private const string indentStock = "                                                                                                                        ";
+        private Node? GetNext(List<Edge<Node>>? next, int index) => (null != next && index < next.Count) ? next[index].Target : null;
+        private string indent(int level) { return indentStock[0..(level * indentSize)]; }
+        public List<string> DisplayAll(bool showConnections)
+        {
+            int splitDepth = 0;
+            int lvl = 1;
+
+            List<string> lines = new(DspGraph.EdgeCount * 2)
+            {
+                "",
+                "",
+                $"DSP:      {DspNum}",
+                $"Topology: {Topology}"
+            };
+
+            // If the graph is correctly constructed and the preset is as
+            // expected, the only roots will be non-zero inputs, which are true
+            // external inputs. But we defensively filter the roots with these
+            // conditions anyway
+            foreach (Node rootInput in DspGraph.Roots().Where(n => n.Block is HlxInput inp && 0 != inp.input))
+            {
+                HlxInput? inp = rootInput.Block as HlxInput;
+                lines.Add("");
+                lines.Add($"=== dsp{inp?.dspNum} input{inp?.inputNum} ===============");
+                lines.Add("");
+
+                Node? n = rootInput;
+
+                Node? pathBHead = null;
+                while (null != n)
+                {
+                    List<Edge<Node>> next = [.. DspGraph.OutEdges(n).ToList()];
+
+                    if (n.Block is HlxSplit split)
+                    {
+                        //lines.Add($"{indent(lvl)}parallel ( {n}");
+                        lines.Add($"{indent(lvl)}parallel (");
+                        pathBHead = GetNext(next, 1);
+                        lvl++;
+                        splitDepth++;
+                        n = GetNext(next, 0);
+                    }
+                    else if (n.Block is HlxJoin joinFirstTime && null != pathBHead) // we're hitting the join the first time
+                    {
+                        //lines.Add($"{indent(lvl)}--- and --- {n}");
+                        lines.Add($"{indent(lvl)}--- and ---");
+                        n = pathBHead;
+                        pathBHead = null;
+                    }
+                    else if (n.Block is HlxJoin joinSecondTime) // no path to backtrack to, we're hitting the join after traversing our split's second path
+                    {
+                        if (splitDepth > 0)
+                        {
+                            // we're exiting a parallel segment
+                            lvl--;
+                            lines.Add($"{indent(lvl)}) {n}");
+                            splitDepth--;
+                        }
+                        //else we're not in a split, it's just a join from
+                        //another path coming. It doesn't affect the signal path
+                        //we're currently on...nothing to display, just proceed
+
+                        n = GetNext(next, 0);
+                    }
+                    else if (n.Model.Category == ModelCategory.Dummy)
+                    {
+                        n = GetNext(next, 0);
+                    }
+                    else
+                    {
+                        if (showConnections || !(n.Block is HlxConnector))
+                            lines.Add($"{indent(lvl)}{n}");
+                        n = GetNext(next, 0);
+                    }
+                }
+
+            }
+            lines.Add("");
             return lines;
         }
     }
