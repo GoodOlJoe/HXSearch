@@ -7,5 +7,6 @@ namespace HXSearch.Hlx
         [JsonProperty("@model")] public string model = "";
         [JsonProperty("@path")] public int path;
         [JsonProperty("@position")] public int position;
+        [JsonProperty("@cab")] public string cab = "";
     }
 }

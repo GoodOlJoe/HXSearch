@@ -35,21 +35,44 @@ namespace HXSearch
                 presetGraph = Dsp[0].DspGraph;
                 ConnectGraphs(audioOutGraph: presetGraph, audioInGraph: Dsp[1].DspGraph); // connect audio outs to audio ins
                 CloseOpenSplits(presetGraph);
+                HandleParallelInputs(presetGraph);
             }
+        }
+        private void HandleParallelInputs(AdjacencyGraph<Node, Edge<Node>> gr)
+        {
+
         }
         private void CloseOpenSplits(AdjacencyGraph<Node, Edge<Node>> gr)
         {
-
+            // paths that came from a split but are exiting to the same output are, in fact, parallel
+            // paths that essentially get 
             bool needToCheckAgain;
             do
             {
                 needToCheckAgain = false;
-                PropagateSplits();
-                List<Node> leafs = [.. gr.Vertices.Where(nd => null != nd.Split && 0 == gr.OutDegree(nd)).OrderBy(n => n.Split.SerialNumber)];
+                PropagateSplitsAndOutputPorts();
+                //List<Node> leafs = [.. gr.Vertices.Where(nd => null != nd.Split && 0 == gr.OutDegree(nd)).OrderBy(n => n.Split.SerialNumber)];
+
+                //foreach (var v in gr.Vertices)
+                ////.Where(
+                ////    n => null != n.Split &&
+                ////    0 == gr.OutDegree(n))
+                ////.OrderBy(n => n.Split.SerialNumber))
+
+                //{
+                //    Console.WriteLine(v);
+                //}
+
+                List<Node> leafs = [.. gr.Vertices
+                                        .Where(
+                                            n => null != n.Split &&
+                                            (n.Model.Category == ModelCategory.Output || n.Model.Category == ModelCategory.Dummy)
+                                            && 0 == gr.OutDegree(n))
+                                        .OrderBy(n => n.Split.SerialNumber)];
 
                 while (null != leafs && leafs.Count >= 2)
                 {
-                    if (leafs[0].Split.SerialNumber == leafs[1].Split.SerialNumber)
+                    if (leafs[0].Split.SerialNumber == leafs[1].Split.SerialNumber && (leafs[0].Split.OutputPort == leafs[1].Split.OutputPort))
                     {
                         InsertJoin([leafs[0], leafs[1]]);
                         leafs.RemoveRange(0, 2);
@@ -92,12 +115,27 @@ namespace HXSearch
                 foreach (Edge<Node> e in originalOutEdges) presetGraph.AddVerticesAndEdge(new Edge<Node>(dummy, e.Target));
             }
         }
-        private void PropagateSplits()
+        private void PropagateSplitsAndOutputPorts()
         {
             var dfs = new DepthFirstSearchAlgorithm<Node, Edge<Node>>(presetGraph);
             dfs.ExamineEdge += Dfs_BackConnectSplits;
+            dfs.ExamineEdge += Dfs_PropagateOutputPort;
             dfs.Compute();
             dfs.ExamineEdge -= Dfs_BackConnectSplits;
+            dfs.ExamineEdge -= Dfs_PropagateOutputPort;
+        }
+        private void Dfs_PropagateOutputPort(Edge<Node> edge)
+        {
+            // if it's a real external input
+            if (edge.Target.Block is HlxOutput targetOutputBlock && (targetOutputBlock.output < 2 || targetOutputBlock.output > 4))
+            {
+                edge.Target.OutputPort = targetOutputBlock.output;
+            }
+            else
+            {
+                // target is not an output, propagate previous block's output port
+                edge.Target.OutputPort = edge.Source.OutputPort;
+            }
         }
         private void Dfs_BackConnectSplits(Edge<Node> edge)
         {
@@ -156,8 +194,6 @@ namespace HXSearch
         {
             copiedNodesMap.Clear();
 
-            //List<Node> inputNodes = [.. audioInGraph.Vertices.Where(n => n.Model.Category == Models.ModelCategory.Input && n.Model.Name.Equals(inputName))];
-
             foreach (Node toInputNode in audioInGraph.Vertices.Where(n => n.Model.Category == Models.ModelCategory.Input && n.Model.Name.Equals(inputName)))
             {
                 HlxInput b = (HlxInput)toInputNode.Block;
@@ -198,61 +234,7 @@ namespace HXSearch
                 copiedNodesMap.Add(edge.Target.SerialNumber, NodeFactory.Instance.NewNode(edge.Target.Block));
 
             presetGraph.AddVerticesAndEdge(new Edge<Node>(copiedNodesMap[edge.Source.SerialNumber], copiedNodesMap[edge.Target.SerialNumber]));
-
-            Console.WriteLine($"Dfs_ProcessEdge {edge}");
         }
-
-        // WHERE I'M AT. Keep building out Preset and DSP, similar audioInGraph prototype,
-        // except that I want audioInGraph use a gr for each dsp structure. Not sure, I
-        // may not need audioInGraph keep the s, a, b, j lists, I may be able audioInGraph just
-        // navigate the Hlx structures but instead of creating s,a,b,j lists,
-        // just construct the gr directly while navigating. Not sure yet.
-
-        // Later, back in the preset, when it comes time audioInGraph connect graphs (dsp0
-        // outs audioInGraph dsp ins) I can do it by walking all vertexes and edges gr
-        // the dsp1 gr and if a node with the same block exists in the dsp0
-        // gr, make a copy of the dsp1 node (can use reference the same
-        // block) and add the copy audioInGraph the dsp0 gr instead. That way when the
-        // entire PRESET gr is completed, we can walk it audioInGraph find open splits,
-        // and fill them in without having the same leg of the gr duplicated
-        // (and thus the split pointer overwriting each other as was happening
-        // with the Unicorn in a Box preset)
-
-        // the method for walking the graphs (audioInGraph attach dsp1 audioInGraph dsp0) is
-        // something like this (gr
-        // https://www.google.com/search?q=quikgraph+add+an+entire+gr&oq=quikgraph+add+an+entire+gr&gs_lcrp=EgZjaHJvbWUyBggAEEUYOTIJCAEQIRgKGKABMgkIAhAhGAoYoAEyCQgDECEYChigATIJCAQQIRgKGKABMgkIBRAhGAoYoAEyBwgGECEYjwLSAQkxODYyM2owajeoAgCwAgA&sourceid=chrome&ie=UTF-8)
-
-
-        // Assuming "sourceGraph" is the existing gr you want audioInGraph copy 
-        // and "newGraph" is the new QuikGraph instance
-        //
-        //foreach (var vertex in sourceGraph.Vertices) {
-        //    newGraph.AddVertex(vertex); // Add each vertex gr the source gr
-        //}
-        //foreach (var edge in sourceGraph.Edges) {
-        //    newGraph.AddEdge(edge.Source, edge.Target); // Add each edge with corresponding source and target
-        //} 
-
-        // and we can check whether the dsp1 node is "already in" the dsp0 gr
-        // by comparing the block and in order for that audioInGraph work we need audioInGraph carry
-        // forward the approach gr the prototype audioInGraph have a master list of all
-        // the blocks in the preset before we construct the individual dsp
-        // graphs. That way if the literally "same" block is in the preset twice
-        // (because a dsp0 output routes twice audioInGraph the same dsp1 input, as in
-        // Unicorn In A Box) I can recognize that condition because the same
-        // instance of the underlying helix block will be present.
-
-        // actually I think this is simpler now that my nodes and my blocks are
-        // separate. Just ALWAYS create a separate node, whether creating a dsp
-        // gr or a full preset gr
-
-        // I still have audioInGraph figure out the architecture of my blocks...since I
-        // need Nodes audioInGraph wrap a Blocks, but still make sure there is only one
-        // instance of a Blocks per Helix block. And I think I need input output
-        // split and join audioInGraph be subtypes of block also, so Node can just have a
-        // reference audioInGraph a block adn not distinguish between regular modules and
-        // inputs merges joins splits. Think it through.
-
 
         public List<string> GraphToStrings()
         {
@@ -332,6 +314,7 @@ namespace HXSearch
                     }
                     else if (n.Model.Category == ModelCategory.Dummy)
                     {
+                        lines.Add($"{indent(lvl)}{n}");
                         n = GetNext(next, 0);
                     }
                     else

@@ -26,6 +26,10 @@ namespace HXSearch.Hlx
         [JsonProperty] private HlxBlock? block17;
         [JsonProperty] private HlxBlock? block18;
         [JsonProperty] private HlxBlock? block19;
+        [JsonProperty] private HlxBlock? cab0;
+        [JsonProperty] private HlxBlock? cab1;
+        [JsonProperty] private HlxBlock? cab2;
+        [JsonProperty] private HlxBlock? cab3;
         [JsonProperty] private HlxInput? inputA;
         [JsonProperty] private HlxInput? inputB;
         [JsonProperty] private HlxOutput? outputA;

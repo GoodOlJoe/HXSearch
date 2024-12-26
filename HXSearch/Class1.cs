@@ -4,6 +4,9 @@
     {
         List<string> inputs =
             [
+                // parallel outputs
+                "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\SAB-SAB b exits.hlx",
+
                 // interconnect split followed by join
                 "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.80 2024 12 07 Helix Floor Backup with 3.80\\Setlist1-FACTORY 1\\Preset120-You Shall Pass.hlx",
 
@@ -58,8 +61,9 @@
             if (File.Exists(outFQN)) { File.Delete(outFQN); }
             foreach (string fqn in inputs)
             {
+                Console.WriteLine(fqn);
                 Preset pre = new(fqn);
-                List<string> a = pre.DisplayAll(showConnections: false);
+                List<string> a = pre.DisplayAll(showConnections: true);
                 File.AppendAllLines(outFQN, a);
             }
         }
