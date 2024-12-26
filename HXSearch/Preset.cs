@@ -33,7 +33,13 @@ namespace HXSearch
                     Dsp.Add(new Dsp(d, hlx.data.tone.global.Topology[d], hlx.data.tone.Dsp[d]));
 
                 presetGraph = Dsp[0].DspGraph;
-                ConnectGraphs(audioOutGraph: presetGraph, audioInGraph: Dsp[1].DspGraph); // connect audio outs to audio ins
+                
+                // connect Dsp0 audio outs to Dsp1 audio ins as necessary
+                ConnectDspGraphs(audioOutGraph: presetGraph, audioInGraph: Dsp[1].DspGraph); 
+                
+                // if there are any signal chains in dsp1 that aren't connected dsp0 outputs, pull them into the preset-level graph
+                ImportStandalonePaths(targetGraph: presetGraph, sourceGraph: Dsp[1].DspGraph);
+                
                 CloseOpenSplits(presetGraph);
                 HandleParallelInputs(presetGraph);
             }
@@ -153,7 +159,21 @@ namespace HXSearch
             }
             //Console.WriteLine($"Dfs_BackConnectSplits {edge}");
         }
-        private void ConnectGraphs(AdjacencyGraph<Node, Edge<Node>> audioOutGraph, AdjacencyGraph<Node, Edge<Node>> audioInGraph)
+        private void ImportStandalonePaths(AdjacencyGraph<Node, Edge<Node>> targetGraph, AdjacencyGraph<Node, Edge<Node>> sourceGraph)
+        { 
+            foreach ( Node n in sourceGraph.Roots())
+            {
+                if (n.Model.Category == ModelCategory.Input && n.Block is HlxInput inputBlock && inputBlock.input != 0)
+                {
+                    if (!targetGraph.Vertices.Contains(n))
+                    {
+                        CopyToPresetGraphStartingAt(sourceGraph, n);
+                    }
+                }
+            }
+        }
+
+        private void ConnectDspGraphs(AdjacencyGraph<Node, Edge<Node>> audioOutGraph, AdjacencyGraph<Node, Edge<Node>> audioInGraph)
         {
             // leaf nodes should be outputs
             List<Node> audioOuts = [.. audioOutGraph.Vertices.Where(n => 0 == audioOutGraph.OutDegree(n) && n.Model.Category == Models.ModelCategory.Output)];

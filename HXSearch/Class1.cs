@@ -4,6 +4,9 @@
     {
         List<string> inputs =
             [
+                // many different physical inputs and outputs 
+                "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Current Setlists\\2020 02 02\\Templates\\Gtr+Vox+Bas+Keys.hlx",
+
                 // parallel outputs
                 "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\SAB-SAB b exits.hlx",
 
@@ -63,7 +66,7 @@
             {
                 Console.WriteLine(fqn);
                 Preset pre = new(fqn);
-                List<string> a = pre.DisplayAll(showConnections: true);
+                List<string> a = pre.DisplayAll(showConnections: false);
                 File.AppendAllLines(outFQN, a);
             }
         }
