@@ -20,7 +20,11 @@ namespace HXSearch
             NodeFactory.Instance.Reset();
             FQN = fqn;
             HlxFile hlx = HlxFile.Load(FQN);
-            if (null != hlx)
+            if (null != hlx && null == hlx.data)
+            {
+                throw new InvalidDataException($"Preset is protected, not analyzed {FQN}");
+            }
+            else if (null != hlx && null != hlx.data)
             {
                 Name = hlx.data.meta.name;
                 for (int d = 0; d < hlx.data.tone.Dsp.Count; d++)

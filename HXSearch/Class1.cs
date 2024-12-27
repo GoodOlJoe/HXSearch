@@ -71,15 +71,27 @@ namespace HXSearch
             ];
         public void Test()
         {
-
             string outFQN = Path.Combine([Environment.CurrentDirectory, "..", "..", "..", "..", "out.txt"]);
             if (File.Exists(outFQN)) { File.Delete(outFQN); }
-            foreach (string fqn in inputs)
+
+            foreach (string fqn in
+                Directory.GetFiles("E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System", "*.hlx", SearchOption.AllDirectories)
+                .Where(s => !s.Contains("New Preset"))
+                )
+            //foreach (string fqn in inputs)
             {
                 Console.WriteLine(fqn);
-                Preset pre = new(fqn);
-                List<string> a = pre.DisplayAll(showConnections: false);
-                File.AppendAllLines(outFQN, a);
+                try
+                {
+
+                    Preset pre = new(fqn);
+                    List<string> a = pre.DisplayAll(showConnections: false);
+                    File.AppendAllLines(outFQN, a);
+                }
+                catch (Exception ex)
+                {
+                    File.AppendAllLines(outFQN, [$"*** {ex.Message}"]);
+                }
             }
         }
     }
