@@ -3,13 +3,6 @@ using HXSearch.Models;
 using QuikGraph;
 using QuikGraph.Algorithms;
 using QuikGraph.Algorithms.Search;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace HXSearch
 {
@@ -24,6 +17,7 @@ namespace HXSearch
         private readonly AdjacencyGraph<Node, Edge<Node>> presetGraph = new();
         public Preset(string fqn)
         {
+            NodeFactory.Instance.Reset();
             FQN = fqn;
             HlxFile hlx = HlxFile.Load(FQN);
             if (null != hlx)
@@ -89,18 +83,6 @@ namespace HXSearch
             {
                 needToCheckAgain = false;
                 PropagateSplitsAndOutputPorts();
-                //List<Node> leafs = [.. gr.Vertices.Where(nd => null != nd.Split && 0 == gr.OutDegree(nd)).OrderBy(n => n.Split.SerialNumber)];
-
-                //foreach (var v in gr.Vertices)
-                ////.Where(
-                ////    n => null != n.Split &&
-                ////    0 == gr.OutDegree(n))
-                ////.OrderBy(n => n.Split.SerialNumber))
-
-                //{
-                //    Console.WriteLine(v);
-                //}
-
                 List<Node> leafs = [.. gr.Vertices
                                         .Where(
                                             n => null != n.Split &&
@@ -219,7 +201,6 @@ namespace HXSearch
             {
                 edge.Target.Split = edge.Source.Split;
             }
-            //Console.WriteLine($"Dfs_BackConnectSplits {edge}");
         }
         private void ImportStandalonePaths(AdjacencyGraph<Node, Edge<Node>> targetGraph, AdjacencyGraph<Node, Edge<Node>> sourceGraph)
         {
@@ -249,7 +230,7 @@ namespace HXSearch
                         ConnectOutputToInput(audioOutGraph: audioOutGraph, audioOutNode: audioOutNode, audioInGraph: audioInGraph, inputName: "HD2_AppDSPFlow1Input");
                         break;
                     case 3:
-                        ConnectOutputToInput(audioOutGraph: audioOutGraph, audioOutNode: audioOutNode, audioInGraph: audioInGraph, inputName: "HD2_AppDSPFlow12nput");
+                        ConnectOutputToInput(audioOutGraph: audioOutGraph, audioOutNode: audioOutNode, audioInGraph: audioInGraph, inputName: "HD2_AppDSPFlow2Input");
                         break;
                     case 4:
 
@@ -329,13 +310,11 @@ namespace HXSearch
 
         private const int indentSize = 4;
         private const string indentStock = "                                                                                                                        ";
-        private Node? GetNext(List<Edge<Node>>? next, int index) => (null != next && index < next.Count) ? next[index].Target : null;
         private string indent(int level) { return indentStock[0..(level * indentSize)]; }
         public List<string> DisplayAll(bool showConnections)
         {
-            int splitDepth = 0;
             int lvl = 1;
-            Stack<Node> backtrackNodes = new();
+            Stack<Node?> nextNode = new(); // stack of tuples: node to proc
 
             List<string> lines = new(presetGraph.EdgeCount * 2)
             {
@@ -355,66 +334,80 @@ namespace HXSearch
                 HlxInput? inp = rootInput.Block as HlxInput;
                 lines.Add("");
                 lines.Add($"=== dsp{inp?.dspNum} input{inp?.inputNum} ===============");
-                lines.Add("");
 
-                Node? n = rootInput;
 
-                Node? pathBHead = null;
-                while (null != n)
+                if (rootInput != null)
+                    nextNode.Push(rootInput);
+
+                while (nextNode.Count > 0)
                 {
-                    List<Edge<Node>> next = [.. presetGraph.OutEdges(n).ToList()];
+                    Node? n = nextNode.Pop();
 
                     if (n.Block is HlxSplit split)
                     {
-                        //lines.Add($"{indent(lvl)}parallel ( {n}");
-                        lines.Add($"{indent(lvl)}parallel (");
-                        //pathBHead = GetNext(next, 1);
-                        backtrackNodes.Push(GetNext(next, 1));
+                        DoNodeInDisplayTraversal(lines, n, lvl, showConnections);
+                        nextNode.Push(null); // this will mark the end of this split's outedges
+                        List<Edge<Node>> outEdges = [.. presetGraph.OutEdges(n).ToList()];
+                        for (int i = outEdges.Count - 1; i >= 0; i--)
+                            nextNode.Push(outEdges[i].Target);
                         lvl++;
-                        splitDepth++;
-                        n = GetNext(next, 0);
                     }
-                    //else if (n.Block is HlxJoin joinFirstTime && null != pathBHead) // we're hitting the join the first time
-                    else if (n.Block is HlxJoin joinFirstTime && 0 == backtrackNodes.Count()) // we're hitting the join the first time
+                    else if (n.Block is HlxJoin)
                     {
-                        //lines.Add($"{indent(lvl)}--- and --- {n}");
-                        lines.Add($"{indent(lvl)}--- and ---");
-
-                        //n = pathBHead;
-                        //pathBHead = null;
-                        n = backtrackNodes.Pop();
-                    }
-                    else if (n.Block is HlxJoin joinSecondTime) // no path to backtrack to, we're hitting the join after traversing our split's second path
-                    {
-                        if (splitDepth > 0)
+                        if (0 == nextNode.Count)
                         {
-                            // we're exiting a parallel segment
-                            lvl--;
-                            lines.Add($"{indent(lvl)}) {n}");
-                            splitDepth--;
+                            // a join with no preceding split is a no-op, just keep going
+                            PushFirstTarget(nextNode, presetGraph, n);
                         }
-                        //else we're not in a split, it's just a join from
-                        //another path coming. It doesn't affect the signal path
-                        //we're currently on...nothing to display, just proceed
-
-                        n = GetNext(next, 0);
-                    }
-                    else if (n.Model.Category == ModelCategory.Dummy)
-                    {
-                        lines.Add($"{indent(lvl)}{n}");
-                        n = GetNext(next, 0);
+                        else if (null == nextNode.Peek())
+                        {
+                            // all of this join's splits have been traversed
+                            nextNode.Pop(); // remove and discard the marker
+                            lvl--;
+                            DoNodeInDisplayTraversal(lines, n, lvl, showConnections, showJoinAsClosure: true);
+                            PushFirstTarget(nextNode, presetGraph, n);
+                        }
+                        else
+                        {
+                            // nothing to push, the traversal will continue from next item on the stack
+                            DoNodeInDisplayTraversal(lines, n, lvl, showConnections, showJoinAsClosure: false);
+                        }
                     }
                     else
                     {
-                        if (showConnections || !(n.Block is HlxConnector))
-                            lines.Add($"{indent(lvl)}{n}");
-                        n = GetNext(next, 0);
+                        DoNodeInDisplayTraversal(lines, n, lvl, showConnections, showJoinAsClosure: false);
+                        PushFirstTarget(nextNode, presetGraph, n);
                     }
                 }
-
             }
-            lines.Add("");
             return lines;
+        }
+        private void PushFirstTarget(Stack<Node?> stack, AdjacencyGraph<Node, Edge<Node>> gr, Node n)
+        {
+            Edge<Node>? e = gr.OutEdges(n).FirstOrDefault();
+            if (null != e) stack.Push(e.Target);
+        }
+        private void DoNodeInDisplayTraversal(List<string> lines, Node? n, int indentLevel, bool showConnections, bool showJoinAsClosure = false)
+        {
+            if (n == null) return;
+
+            switch (n.Model.Category)
+            {
+                case ModelCategory.Split:
+                    lines.Add($"{indent(indentLevel)}(");
+                    break;
+                case ModelCategory.Merge:
+                    lines.Add($"{indent(indentLevel)}{(showJoinAsClosure ? ")" : "--- and ---")}");
+                    break;
+                case ModelCategory.Dummy:
+                case ModelCategory.Input:
+                case ModelCategory.Output:
+                    if (showConnections) lines.Add($"{indent(indentLevel)}{n}");
+                    break;
+                default:
+                    lines.Add($"{indent(indentLevel)}{n}");
+                    break;
+            }
         }
     }
 }

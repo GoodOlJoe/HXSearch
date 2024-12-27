@@ -13,6 +13,7 @@ namespace HXSearch
         private NodeFactory() { }
         public static NodeFactory Instance => instance;
         private int SerialNumber = 0;
+        public void Reset() { SerialNumber = 0; }
 
         public Node NewNode(HlxBlock block)
         {
@@ -23,9 +24,9 @@ namespace HXSearch
                 Block = block,
             };
         }
-        public Node NewNode(HlxInput block ) { return NewNode((HlxBlock)block ); }
-        public Node NewNode(HlxOutput block ) { return NewNode((HlxBlock)block ); }
-        public Node NewNode(HlxSplit block ) { return NewNode((HlxBlock)block ); }
-        public Node NewNode(HlxJoin block ) { return NewNode((HlxBlock)block ); }
+        public Node NewNode(HlxInput block) { return NewNode((HlxBlock)block); }
+        public Node NewNode(HlxOutput block) { return NewNode((HlxBlock)block); }
+        public Node NewNode(HlxSplit block) { return NewNode((HlxBlock)block); }
+        public Node NewNode(HlxJoin block) { return NewNode((HlxBlock)block); }
     }
 }

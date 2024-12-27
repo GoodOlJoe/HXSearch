@@ -4,6 +4,8 @@
     {
         List<string> inputs =
             [
+                "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.80 2024 12 16 with my presets\\Setlist8-TEMPLATES\\Preset016-MIDI Bass Pedals.hlx",
+
                 // AB AB but all from the same input and to same output
                 "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\ABAB 1 In 1 Out.hlx",
 
@@ -19,7 +21,6 @@
                 "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\Nvr Gng Bk Loopr.hlx",
                 "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\in outs.hlx",
                 "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.80 2024 12 16 with my presets\\Setlist6-Sandbox\\Preset021-US Double Nrm.hlx",
-                "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.80 2024 12 16 with my presets\\Setlist8-TEMPLATES\\Preset016-MIDI Bass Pedals.hlx",
 
                 // # regular split followed by interconnect split
                 "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.80 2024 12 07 Helix Floor Backup with 3.80\\Setlist2-FACTORY 2\\Preset047-Unicorns Forever.hlx",
@@ -69,7 +70,7 @@
             {
                 Console.WriteLine(fqn);
                 Preset pre = new(fqn);
-                List<string> a = pre.DisplayAll(showConnections: true);
+                List<string> a = pre.DisplayAll(showConnections: false);
                 File.AppendAllLines(outFQN, a);
             }
         }
