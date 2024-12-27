@@ -33,19 +33,51 @@ namespace HXSearch
                     Dsp.Add(new Dsp(d, hlx.data.tone.global.Topology[d], hlx.data.tone.Dsp[d]));
 
                 presetGraph = Dsp[0].DspGraph;
-                
+
                 // connect Dsp0 audio outs to Dsp1 audio ins as necessary
-                ConnectDspGraphs(audioOutGraph: presetGraph, audioInGraph: Dsp[1].DspGraph); 
-                
+                ConnectDspGraphs(audioOutGraph: presetGraph, audioInGraph: Dsp[1].DspGraph);
+
                 // if there are any signal chains in dsp1 that aren't connected dsp0 outputs, pull them into the preset-level graph
                 ImportStandalonePaths(targetGraph: presetGraph, sourceGraph: Dsp[1].DspGraph);
-                
-                CloseOpenSplits(presetGraph);
+
+                // if we have multiple chains from the same physical input, show
+                // them as a single input which splits into multiple paths.
                 HandleParallelInputs(presetGraph);
+
+                // If we have signal paths existing to the same output port,
+                // shows them as merging Must run AFTER HandleParallelInputs or
+                // else we won't recognize "implied" parallelism that originates
+                // as multiple paths from the same external input port.
+                CloseOpenSplits(presetGraph);
             }
         }
         private void HandleParallelInputs(AdjacencyGraph<Node, Edge<Node>> gr)
         {
+            bool needToCheckAgain;
+            do
+            {
+                needToCheckAgain = false;
+                // get root inputs coming from external inputs ports
+                List<Node> rootInputs = [.. gr.Roots()
+                                        .Where(
+                                            n => n.Model.Category == ModelCategory.Input &&
+                                            n.Block is HlxInput inputBlock &&
+                                            0 != inputBlock.input )
+                                        .OrderBy(n => ((HlxInput)n.Block).input)];
+                while (rootInputs.Count >= 2)
+                {
+                    if (((HlxInput)rootInputs[0].Block).input == ((HlxInput)rootInputs[1].Block).input)
+                    {
+                        InsertSplitAfter([rootInputs[0], rootInputs[1]]);
+                        rootInputs.RemoveRange(0, 2);
+                        needToCheckAgain = true;
+                    }
+                    else
+                    {
+                        rootInputs.RemoveAt(0);
+                    }
+                }
+            } while (needToCheckAgain);
 
         }
         private void CloseOpenSplits(AdjacencyGraph<Node, Edge<Node>> gr)
@@ -90,6 +122,36 @@ namespace HXSearch
                     }
                 }
             } while (needToCheckAgain);
+
+        }
+        private void InsertSplitAfter(Node[] nodes)
+        {
+            // add a solit to the graph, inserting it afer each Node in the
+            // given array of nodes and those nodes downstream targets.
+
+            List<Node> removeNodes = new(nodes.Length - 1);
+            Node s = NodeFactory.Instance.NewNode(new HlxSplit() { model = ModelId.ImpliedSplit.ToString() });
+            int nodeNum = 0;
+            foreach (Node n in nodes)
+            {
+                List<Edge<Node>> originalOutEdges = [.. presetGraph.OutEdges(n)];
+
+                // remove current downstream links from the node
+                foreach (Edge<Node> e in originalOutEdges) presetGraph.RemoveEdge(e);
+
+                presetGraph.AddVerticesAndEdge(new Edge<Node>(n, s)); // new split becomes the new downstream target for this node
+
+                // add the original downstream nodes as S's downstream targets
+                foreach (Edge<Node> e in originalOutEdges) presetGraph.AddVerticesAndEdge(new Edge<Node>(s, e.Target));
+
+                // we will remove all but the first node from the graph
+                if (nodeNum > 0) removeNodes.Add(n);
+
+                nodeNum++;
+            }
+
+            foreach (Node obsoleteNode in removeNodes)
+                presetGraph.RemoveVertex(obsoleteNode);
 
         }
         private void InsertJoin(Node[] nodes)
@@ -160,8 +222,8 @@ namespace HXSearch
             //Console.WriteLine($"Dfs_BackConnectSplits {edge}");
         }
         private void ImportStandalonePaths(AdjacencyGraph<Node, Edge<Node>> targetGraph, AdjacencyGraph<Node, Edge<Node>> sourceGraph)
-        { 
-            foreach ( Node n in sourceGraph.Roots())
+        {
+            foreach (Node n in sourceGraph.Roots())
             {
                 if (n.Model.Category == ModelCategory.Input && n.Block is HlxInput inputBlock && inputBlock.input != 0)
                 {
@@ -273,6 +335,7 @@ namespace HXSearch
         {
             int splitDepth = 0;
             int lvl = 1;
+            Stack<Node> backtrackNodes = new();
 
             List<string> lines = new(presetGraph.EdgeCount * 2)
             {
@@ -305,17 +368,21 @@ namespace HXSearch
                     {
                         //lines.Add($"{indent(lvl)}parallel ( {n}");
                         lines.Add($"{indent(lvl)}parallel (");
-                        pathBHead = GetNext(next, 1);
+                        //pathBHead = GetNext(next, 1);
+                        backtrackNodes.Push(GetNext(next, 1));
                         lvl++;
                         splitDepth++;
                         n = GetNext(next, 0);
                     }
-                    else if (n.Block is HlxJoin joinFirstTime && null != pathBHead) // we're hitting the join the first time
+                    //else if (n.Block is HlxJoin joinFirstTime && null != pathBHead) // we're hitting the join the first time
+                    else if (n.Block is HlxJoin joinFirstTime && 0 == backtrackNodes.Count()) // we're hitting the join the first time
                     {
                         //lines.Add($"{indent(lvl)}--- and --- {n}");
                         lines.Add($"{indent(lvl)}--- and ---");
-                        n = pathBHead;
-                        pathBHead = null;
+
+                        //n = pathBHead;
+                        //pathBHead = null;
+                        n = backtrackNodes.Pop();
                     }
                     else if (n.Block is HlxJoin joinSecondTime) // no path to backtrack to, we're hitting the join after traversing our split's second path
                     {
