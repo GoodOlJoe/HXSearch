@@ -40,7 +40,7 @@ namespace HXSearch
                 case "A":
                     input = NodeFactory.Instance.NewNode(hlxDsp.Inputs[0]);
                     output = NodeFactory.Instance.NewNode(hlxDsp.Outputs[0]);
-                    AddStraightPathBetweenNodes(graph, input, blocks, output);
+                    AddStraightPathBetweenNodes(graph, hlxDsp, input, blocks, output);
                     break;
 
                 case "AB":
@@ -48,7 +48,7 @@ namespace HXSearch
                     {
                         input = NodeFactory.Instance.NewNode(hlxDsp.Inputs[path]);
                         output = NodeFactory.Instance.NewNode(hlxDsp.Outputs[path]);
-                        AddStraightPathBetweenNodes(graph, input, blocks.Where(b => path == b.path), output);
+                        AddStraightPathBetweenNodes(graph, hlxDsp, input, blocks.Where(b => path == b.path), output);
                     }
                     break;
 
@@ -58,10 +58,10 @@ namespace HXSearch
                     split = NodeFactory.Instance.NewNode(hlxDsp.Split);
                     join = NodeFactory.Instance.NewNode(hlxDsp.Join);
 
-                    AddStraightPathBetweenNodes(graph, input, blocks.Where(b => 0 == b.path && b.position < hlxDsp.Split.position), split);
-                    AddStraightPathBetweenNodes(graph, join, blocks.Where(b => 0 == b.path && b.position >= hlxDsp.Join.position), output);
-                    AddStraightPathBetweenNodes(graph, split, blocks.Where(b => 0 == b.path && b.position >= hlxDsp.Split.position && b.position < hlxDsp.Join.position), join);
-                    AddStraightPathBetweenNodes(graph, split, blocks.Where(b => 1 == b.path), join);
+                    AddStraightPathBetweenNodes(graph, hlxDsp, input, blocks.Where(b => 0 == b.path && b.position < hlxDsp.Split.position), split);
+                    AddStraightPathBetweenNodes(graph, hlxDsp, join, blocks.Where(b => 0 == b.path && b.position >= hlxDsp.Join.position), output);
+                    AddStraightPathBetweenNodes(graph, hlxDsp, split, blocks.Where(b => 0 == b.path && b.position >= hlxDsp.Split.position && b.position < hlxDsp.Join.position), join);
+                    AddStraightPathBetweenNodes(graph, hlxDsp, split, blocks.Where(b => 1 == b.path), join);
                     break;
 
                 case "SAB":
@@ -70,9 +70,9 @@ namespace HXSearch
                     Node output0 = NodeFactory.Instance.NewNode(hlxDsp.Outputs[0]);
                     Node output1 = NodeFactory.Instance.NewNode(hlxDsp.Outputs[1]);
 
-                    AddStraightPathBetweenNodes(graph, input, blocks.Where(b => 0 == b.path && b.position < hlxDsp.Split.position), split);
-                    AddStraightPathBetweenNodes(graph, split, blocks.Where(b => 0 == b.path && b.position >= hlxDsp.Split.position), output0);
-                    AddStraightPathBetweenNodes(graph, split, blocks.Where(b => 1 == b.path), output1);
+                    AddStraightPathBetweenNodes(graph, hlxDsp, input, blocks.Where(b => 0 == b.path && b.position < hlxDsp.Split.position), split);
+                    AddStraightPathBetweenNodes(graph, hlxDsp, split, blocks.Where(b => 0 == b.path && b.position >= hlxDsp.Split.position), output0);
+                    AddStraightPathBetweenNodes(graph, hlxDsp, split, blocks.Where(b => 1 == b.path), output1);
                     break;
 
                 case "ABJ":
@@ -81,14 +81,14 @@ namespace HXSearch
                     output = NodeFactory.Instance.NewNode(hlxDsp.Outputs[0]);
                     join = NodeFactory.Instance.NewNode(hlxDsp.Join);
 
-                    AddStraightPathBetweenNodes(graph, input0, blocks.Where(b => 0 == b.path && b.position < hlxDsp.Join.position), join);
-                    AddStraightPathBetweenNodes(graph, input1, blocks.Where(b => 1 == b.path), join);
-                    AddStraightPathBetweenNodes(graph, join, blocks.Where(b => 0 == b.path && b.position >= hlxDsp.Join.position), output);
+                    AddStraightPathBetweenNodes(graph, hlxDsp, input0, blocks.Where(b => 0 == b.path && b.position < hlxDsp.Join.position), join);
+                    AddStraightPathBetweenNodes(graph, hlxDsp, input1, blocks.Where(b => 1 == b.path), join);
+                    AddStraightPathBetweenNodes(graph, hlxDsp, join, blocks.Where(b => 0 == b.path && b.position >= hlxDsp.Join.position), output);
                     break;
             }
             return graph;
         }
-        private static void AddStraightPathBetweenNodes(AdjacencyGraph<Node, Edge<Node>> graph, Node? head, IEnumerable<HlxBlock>? blocks, Node? tail)
+        private static void AddStraightPathBetweenNodes(AdjacencyGraph<Node, Edge<Node>> graph, HlxDsp hlxDsp, Node? head, IEnumerable<HlxBlock>? blocks, Node? tail)
         {
             if (null == head && null == blocks) return; // all we have is a tail, nothing to do
             if (null == tail && null == blocks) return; // all we have is a head, nothing to do
@@ -98,14 +98,59 @@ namespace HXSearch
             if (null != blocks)
                 foreach (HlxBlock blk in blocks)
                 {
-                    Node target = NodeFactory.Instance.NewNode(blk);
                     if (null != source && null != tail)
-                        graph.AddVerticesAndEdge(new Edge<Node>(source, target));
-                    source = target;
+                    {
+                        Node target = NodeFactory.Instance.NewNode(blk);
+
+                        if (target.Model.Category == ModelCategory.Amp && !string.IsNullOrEmpty(blk.cab))
+                        {
+                            // special case for Amp+Cab -- insert the amp and a new block representing the cab
+                            graph.AddVerticesAndEdge(new Edge<Node>(source, target));
+                            Node cab = GetImpliedCabNode(blk, hlxDsp);
+                            graph.AddVerticesAndEdge(new Edge<Node>(target,cab));
+                            target = cab;
+                        }
+                        else if (target.Model.Category == ModelCategory.DualCab)
+                        {
+                            // special case for Dual Cabs -- insert a mini graph
+                            // representing a split/two parallel cabs/merge
+                            (Node s, Node a, Node b, Node j) dcNodes = GetDualCabNodes(target.Block, hlxDsp);
+                            graph.AddVerticesAndEdge(new Edge<Node>(source, dcNodes.s));
+                            graph.AddVerticesAndEdge(new Edge<Node>(dcNodes.s, dcNodes.a));
+                            graph.AddVerticesAndEdge(new Edge<Node>(dcNodes.s, dcNodes.b));
+                            graph.AddVerticesAndEdge(new Edge<Node>(dcNodes.a, dcNodes.j));
+                            graph.AddVerticesAndEdge(new Edge<Node>(dcNodes.b, dcNodes.j));
+                            target = dcNodes.j;
+                        }
+                        else
+                        {
+                            graph.AddVerticesAndEdge(new Edge<Node>(source, target));
+                        }
+                        source = target;
+                    }
                 }
 
             if (null != source && null != tail)
                 graph.AddVerticesAndEdge(new Edge<Node>(source, tail));
+        }
+        private static Node GetImpliedCabNode(HlxBlock blk, HlxDsp hlxDsp)
+        {
+            return blk.cab switch
+            {
+                "cab0" => NodeFactory.Instance.NewNode(new HlxCab() { model = hlxDsp.Cabs[0].model }),
+                "cab1" => NodeFactory.Instance.NewNode(new HlxCab() { model = hlxDsp.Cabs[1].model }),
+                "cab2" => NodeFactory.Instance.NewNode(new HlxCab() { model = hlxDsp.Cabs[2].model }),
+                "cab3" => NodeFactory.Instance.NewNode(new HlxCab() { model = hlxDsp.Cabs[3].model }),
+                _ => NodeFactory.Instance.NewNode(blk) // failsafe, should never happen
+            };
+        }
+        private static (Node s, Node a, Node b, Node j) GetDualCabNodes(HlxBlock dualCabBlock, HlxDsp hlxDsp)
+        {
+            Node s = NodeFactory.Instance.NewNode(new HlxSplit() { model = ModelId.ImpliedDualCabSplit.ToString() });
+            Node a = NodeFactory.Instance.NewNode(dualCabBlock);
+            Node b = GetImpliedCabNode(dualCabBlock, hlxDsp);
+            Node j = NodeFactory.Instance.NewNode(new HlxJoin() { model = ModelId.ImpliedJoin.ToString() });
+            return (s, a, b, j);
         }
         public List<string> GraphToStrings()
         {

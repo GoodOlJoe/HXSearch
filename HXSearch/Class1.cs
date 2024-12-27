@@ -1,9 +1,17 @@
-﻿namespace HXSearch
+﻿using System.Diagnostics.Metrics;
+
+namespace HXSearch
 {
     public class Class1
     {
         List<string> inputs =
-            [
+        [
+                // dual cab
+                "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.60 2023 04 26 3.60 Factory Presets\\Setlist1-FACTORY 1\\Preset000-US Double Nrm.hlx",
+
+                // Amp+Cab combos
+                "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - 2021 Individual backups after Full Backup failed\\Via individual drag and drop\\Setlists\\01 FACTORY 1\\JEFF SCHROEDER 1.hlx",
+
                 "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.80 2024 12 16 with my presets\\Setlist8-TEMPLATES\\Preset016-MIDI Bass Pedals.hlx",
 
                 // AB AB but all from the same input and to same output

@@ -26,10 +26,10 @@ namespace HXSearch.Hlx
         [JsonProperty] private HlxBlock? block17;
         [JsonProperty] private HlxBlock? block18;
         [JsonProperty] private HlxBlock? block19;
-        [JsonProperty] private HlxBlock? cab0;
-        [JsonProperty] private HlxBlock? cab1;
-        [JsonProperty] private HlxBlock? cab2;
-        [JsonProperty] private HlxBlock? cab3;
+        [JsonProperty] private HlxCab? cab0;
+        [JsonProperty] private HlxCab? cab1;
+        [JsonProperty] private HlxCab? cab2;
+        [JsonProperty] private HlxCab? cab3;
         [JsonProperty] private HlxInput? inputA;
         [JsonProperty] private HlxInput? inputB;
         [JsonProperty] private HlxOutput? outputA;
@@ -40,6 +40,7 @@ namespace HXSearch.Hlx
         [JsonIgnore] public readonly List<HlxBlock> Blocks = new(20);
         [JsonIgnore] public readonly List<HlxInput> Inputs = new(2);
         [JsonIgnore] public readonly List<HlxOutput> Outputs = new(2);
+        [JsonIgnore] public readonly List<HlxCab> Cabs = new(2);
         [JsonIgnore] public HlxSplit Split = new();
         [JsonIgnore] public HlxJoin Join = new();
 
@@ -53,6 +54,11 @@ namespace HXSearch.Hlx
 
             if (null != outputA) { Outputs.Add(outputA); Outputs[0].outputNum = 0; outputA = null; }
             if (null != outputB) { Outputs.Add(outputB); Outputs[1].outputNum = 1; outputB = null; }
+
+            if (null != cab0) { Cabs.Add(cab0); cab0 = null; }
+            if (null != cab1) { Cabs.Add(cab1); cab1 = null; }
+            if (null != cab2) { Cabs.Add(cab2); cab2 = null; }
+            if (null != cab3) { Cabs.Add(cab3); cab3 = null; }
 
             if (null != block0) { Blocks.Add(block0); block0 = null; }
             if (null != block1) { Blocks.Add(block1); block1 = null; }

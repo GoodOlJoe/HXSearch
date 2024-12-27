@@ -679,6 +679,7 @@
         HD2_AppDSPFlowOutput,
         HD2_AppDSPFlowJoin,
         ImpliedSplit,
+        ImpliedDualCabSplit,
         ImpliedJoin,
         Dummy,
         Unknown,
@@ -1398,6 +1399,7 @@
             { "HD2_AppDSPFlowJoin", new Model("HD2_AppDSPFlowJoin", ModelId.HD2_AppDSPFlowJoin, ModelCategory.Merge, "Merge", "Merge") },
             { "Dummy", new Model("Dummy", ModelId.Dummy, ModelCategory.Dummy, "Dummy", "Dummy") },
             { "ImpliedSplit", new Model("ImpliedSplit", ModelId.ImpliedSplit, ModelCategory.Split, "Implied Split", "Implied Split") },
+            { "ImpliedDualCabSplit", new Model("ImpliedDualCabSplit", ModelId.ImpliedDualCabSplit, ModelCategory.Split, "DualCab Split", "DualCab Split") },
             { "ImpliedJoin", new Model("ImpliedJoin", ModelId.ImpliedJoin, ModelCategory.Merge, "Implied Join", "Implied Join") },
             { "Unknown", new Model("Unknown", ModelId.Unknown, ModelCategory.Unknown, "Unknown", "Unknown") },
         };
