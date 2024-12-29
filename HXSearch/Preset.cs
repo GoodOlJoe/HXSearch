@@ -3,13 +3,33 @@ using HXSearch.Models;
 using QuikGraph;
 using QuikGraph.Algorithms;
 using QuikGraph.Algorithms.Search;
+using System.Text;
 
 namespace HXSearch
 {
     // QuikGraph library https://github.com/KeRNeLith/QuikGraph/wiki/README
 
+
     internal class Preset
     {
+        internal delegate void NodeHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
+        internal delegate void SplitHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
+        internal delegate void EndParallelSegmentHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
+        internal delegate void JoinHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
+        internal delegate void PreTraversalHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset);
+        internal delegate void PostTraversalHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset);
+        internal delegate void PreRootHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node root);
+        internal delegate void PostRootHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node root);
+
+        public event NodeHandler OnProcessNode;
+        public event SplitHandler OnSplit;
+        public event EndParallelSegmentHandler OnEndParallelSegment;
+        public event JoinHandler OnJoin;
+        public event PreTraversalHandler OnPreTraversal;
+        public event PostTraversalHandler OnPostTraversal;
+        public event PreRootHandler OnPreRoot;
+        public event PostRootHandler OnPostRoot;
+
         //private HlxFile HlxFile;
         public readonly string Name = "";
         public readonly string FQN = "";
@@ -335,10 +355,10 @@ namespace HXSearch
             // conditions anyway
             foreach (Node rootInput in presetGraph.Roots().Where(n => n.Block is HlxInput inp && 0 != inp.input))
             {
+                StringBuilder sbSig = new StringBuilder(50);
                 HlxInput? inp = rootInput.Block as HlxInput;
                 lines.Add("");
                 lines.Add($"=== dsp{inp?.dspNum} input{inp?.inputNum} ===============");
-
 
                 if (rootInput != null)
                     nextNode.Push(rootInput);
@@ -350,6 +370,7 @@ namespace HXSearch
                     if (n.Block is HlxSplit split)
                     {
                         DoNodeInDisplayTraversal(lines, n, lvl, showConnections);
+                        sbSig.Append(DoNodeInSignatureTraversal(n));
                         nextNode.Push(null); // this will mark the end of this split's outedges
                         List<Edge<Node>> outEdges = [.. presetGraph.OutEdges(n).ToList()];
                         for (int i = outEdges.Count - 1; i >= 0; i--)
@@ -369,20 +390,24 @@ namespace HXSearch
                             nextNode.Pop(); // remove and discard the marker
                             lvl--;
                             DoNodeInDisplayTraversal(lines, n, lvl, showConnections, showJoinAsClosure: true);
+                            sbSig.Append(DoNodeInSignatureTraversal(n, JoinIsClosure: true));
                             PushFirstTarget(nextNode, presetGraph, n);
                         }
                         else
                         {
                             // nothing to push, the traversal will continue from next item on the stack
                             DoNodeInDisplayTraversal(lines, n, lvl, showConnections, showJoinAsClosure: false);
+                            sbSig.Append(DoNodeInSignatureTraversal(n, JoinIsClosure: false));
                         }
                     }
                     else
                     {
                         DoNodeInDisplayTraversal(lines, n, lvl, showConnections, showJoinAsClosure: false);
+                        sbSig.Append(DoNodeInSignatureTraversal(n, JoinIsClosure: false));
                         PushFirstTarget(nextNode, presetGraph, n);
                     }
                 }
+                lines.Add($"Signature:           {sbSig}");
             }
             return lines;
         }
@@ -412,6 +437,85 @@ namespace HXSearch
                     lines.Add($"{indent(indentLevel)}{n}");
                     break;
             }
+        }
+        private string DoNodeInSignatureTraversal(Node? n, bool JoinIsClosure = false)
+        {
+            if (n == null) return "";
+            switch (n.Model.Category)
+            {
+                case ModelCategory.Split: return "(";
+                case ModelCategory.Merge: return JoinIsClosure ? ")" : "|";
+                case ModelCategory.Dummy: return "";
+                case ModelCategory.Input:
+                case ModelCategory.Output: return n.Model.Signature();
+                default: return n.Model.Signature();
+            }
+        }
+        public void Traverse(AdjacencyGraph<Node, Edge<Node>> graph, IEnumerable<Node>? roots = null)
+        {
+            int lvl = 1;
+            Stack<Node?> nextNode = new(); // stack of tuples: node to proc
+
+            OnPreTraversal?.Invoke(graph, this);
+
+            // if they don't supply a collection of roots to start from we use
+            // the graphs roots, which, if the graph is correctly constructed
+            // and the preset is as expected, will be non-zero inputs, which are
+            // true external inputs. 
+            if (null == roots)
+                roots = graph.Roots().Where(n => n.Block is HlxInput inp && 0 != inp.input);
+
+            foreach (Node rootInput in roots)
+            {
+                if (rootInput != null)
+                {
+                    OnPreRoot?.Invoke(graph, this, rootInput);
+                    nextNode.Push(rootInput);
+                }
+
+                while (nextNode.Count > 0)
+                {
+                    Node? n = nextNode.Pop();
+
+                    if (n.Block is HlxSplit split)
+                    {
+                        OnSplit(graph, this, n, lvl);
+                        nextNode.Push(null); // this will mark the end of this split's outedges
+                        List<Edge<Node>> outEdges = [.. presetGraph.OutEdges(n).ToList()];
+                        for (int i = outEdges.Count - 1; i >= 0; i--)
+                            nextNode.Push(outEdges[i].Target);
+                        lvl++;
+                    }
+                    else if (n.Block is HlxJoin)
+                    {
+                        if (0 == nextNode.Count)
+                        {
+                            // a join with no preceding split is a no-op, just keep going
+                            PushFirstTarget(nextNode, presetGraph, n);
+                        }
+                        else if (null == nextNode.Peek())
+                        {
+                            // all of this join's splits have been traversed
+                            nextNode.Pop(); // remove and discard the marker
+                            lvl--;
+                            OnJoin(graph, this, n, lvl);
+                            PushFirstTarget(nextNode, presetGraph, n);
+                        }
+                        else
+                        {
+                            // nothing to push, the traversal will continue from next item on the stack
+                            OnEndParallelSegment(graph, this, n, lvl);
+                        }
+                    }
+                    else
+                    {
+                        OnProcessNode(graph, this, n, lvl);
+                        PushFirstTarget(nextNode, presetGraph, n);
+                    }
+                }
+                OnPostRoot(graph, this, rootInput);
+            }
+            OnPostTraversal(graph, this);
         }
     }
 }
