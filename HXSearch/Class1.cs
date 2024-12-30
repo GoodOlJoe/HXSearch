@@ -4,7 +4,7 @@ namespace HXSearch
 {
     public class Class1
     {
-        List<string> inputs =
+        readonly List<string> inputs =
         [
                 // dual cab
                 "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.60 2023 04 26 3.60 Factory Presets\\Setlist1-FACTORY 1\\Preset000-US Double Nrm.hlx",
@@ -69,7 +69,7 @@ namespace HXSearch
                 "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\y.hlx",
                 "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\2.92 2020 11 22 BEFORE UPGRADE 2.9 TO 3.0\\Setlist1-FACTORY 1\\Preset101-Sunbather.hlx"
             ];
-        public void Test()
+        public static void Test()
         {
             string outFQN = Path.Combine([Environment.CurrentDirectory, "..", "..", "..", "..", "out.txt"]);
             if (File.Exists(outFQN)) { File.Delete(outFQN); }
@@ -85,8 +85,20 @@ namespace HXSearch
                 {
 
                     Preset pre = new(fqn);
-                    List<string> a = pre.DisplayAll(showConnections: false);
-                    File.AppendAllLines(outFQN, a);
+                    //List<string> a = pre.DisplayAll(showConnections: false);
+                    //File.AppendAllLines(outFQN, a);
+
+                    TraversalHandlers.ConsoleDisplay cd = new(showConnections: true); cd.Subscribe(pre);
+                    TraversalHandlers.TrueSignature trueSig = new(); trueSig.Subscribe(pre);
+
+                    pre.Traverse();
+
+                    File.AppendAllLines(outFQN, cd.OutputLines);
+                    File.AppendAllText(outFQN, $"True signature: {trueSig.Signature}");
+
+                    cd.UnSubscribe(pre);
+                    trueSig.UnSubscribe(pre);
+
                 }
                 catch (Exception ex)
                 {

@@ -29,7 +29,7 @@ namespace HXSearch
         private static AdjacencyGraph<Node, Edge<Node>> BuildDspGraphByTopology(string topology, HlxDsp hlxDsp)
         {
             var graph = new AdjacencyGraph<Node, Edge<Node>>();
-            List<HlxBlock> blocks = hlxDsp.Blocks.OrderBy(b => b.position).ToList();
+            List<HlxBlock> blocks = [.. hlxDsp.Blocks.OrderBy(b => b.position)];
 
             Node input;
             Node output;
@@ -114,13 +114,13 @@ namespace HXSearch
                         {
                             // special case for Dual Cabs -- insert a mini graph
                             // representing a split/two parallel cabs/merge
-                            (Node s, Node a, Node b, Node j) dcNodes = GetDualCabNodes(target.Block, hlxDsp);
-                            graph.AddVerticesAndEdge(new Edge<Node>(source, dcNodes.s));
-                            graph.AddVerticesAndEdge(new Edge<Node>(dcNodes.s, dcNodes.a));
-                            graph.AddVerticesAndEdge(new Edge<Node>(dcNodes.s, dcNodes.b));
-                            graph.AddVerticesAndEdge(new Edge<Node>(dcNodes.a, dcNodes.j));
-                            graph.AddVerticesAndEdge(new Edge<Node>(dcNodes.b, dcNodes.j));
-                            target = dcNodes.j;
+                            (Node s, Node a, Node b, Node j) = GetDualCabNodes(target.Block, hlxDsp);
+                            graph.AddVerticesAndEdge(new Edge<Node>(source, s));
+                            graph.AddVerticesAndEdge(new Edge<Node>(s, a));
+                            graph.AddVerticesAndEdge(new Edge<Node>(s, b));
+                            graph.AddVerticesAndEdge(new Edge<Node>(a, j));
+                            graph.AddVerticesAndEdge(new Edge<Node>(b, j));
+                            target = j;
                         }
                         else
                         {
@@ -161,8 +161,8 @@ namespace HXSearch
         }
         private const int indentSize = 4;
         private const string indentStock = "                                                                                                                        ";
-        private Node? GetNext(List<Edge<Node>>? next, int index) => (null != next && index < next.Count) ? next[index].Target : null;
-        private string indent(int level) { return indentStock[0..(level * indentSize)]; }
+        private static Node? GetNext(List<Edge<Node>>? next, int index) => (null != next && index < next.Count) ? next[index].Target : null;
+        private static string Indent(int level) { return indentStock[0..(level * indentSize)]; }
         public List<string> DisplayAll(bool showConnections)
         {
             int splitDepth = 0;
@@ -196,8 +196,8 @@ namespace HXSearch
 
                     if (n.Block is HlxSplit split)
                     {
-                        //lines.Add($"{indent(lvl)}parallel ( {n}");
-                        lines.Add($"{indent(lvl)}parallel (");
+                        //lines.Add($"{Indent(lvl)}parallel ( {n}");
+                        lines.Add($"{Indent(lvl)}parallel (");
                         pathBHead = GetNext(next, 1);
                         lvl++;
                         splitDepth++;
@@ -205,8 +205,8 @@ namespace HXSearch
                     }
                     else if (n.Block is HlxJoin joinFirstTime && null != pathBHead) // we're hitting the join the first time
                     {
-                        //lines.Add($"{indent(lvl)}--- and --- {n}");
-                        lines.Add($"{indent(lvl)}--- and ---");
+                        //lines.Add($"{Indent(lvl)}--- and --- {n}");
+                        lines.Add($"{Indent(lvl)}--- and ---");
                         n = pathBHead;
                         pathBHead = null;
                     }
@@ -216,7 +216,7 @@ namespace HXSearch
                         {
                             // we're exiting a parallel segment
                             lvl--;
-                            lines.Add($"{indent(lvl)}) {n}");
+                            lines.Add($"{Indent(lvl)}) {n}");
                             splitDepth--;
                         }
                         //else we're not in a split, it's just a join from
@@ -231,8 +231,8 @@ namespace HXSearch
                     }
                     else
                     {
-                        if (showConnections || !(n.Block is HlxConnector))
-                            lines.Add($"{indent(lvl)}{n}");
+                        if (showConnections || n.Block is not HlxConnector)
+                            lines.Add($"{Indent(lvl)}{n}");
                         n = GetNext(next, 0);
                     }
                 }

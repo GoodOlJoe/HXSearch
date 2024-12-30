@@ -12,28 +12,34 @@ namespace HXSearch
 
     internal class Preset
     {
-        internal delegate void NodeHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
+        internal delegate void PreTraversalHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset);
+        internal delegate void PreRootHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node root);
         internal delegate void SplitHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
         internal delegate void EndParallelSegmentHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
         internal delegate void JoinHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
-        internal delegate void PreTraversalHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset);
-        internal delegate void PostTraversalHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset);
-        internal delegate void PreRootHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node root);
+        internal delegate void NodeHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
         internal delegate void PostRootHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node root);
+        internal delegate void PostTraversalHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset);
 
-        public event NodeHandler OnProcessNode;
-        public event SplitHandler OnSplit;
-        public event EndParallelSegmentHandler OnEndParallelSegment;
-        public event JoinHandler OnJoin;
-        public event PreTraversalHandler OnPreTraversal;
-        public event PostTraversalHandler OnPostTraversal;
-        public event PreRootHandler OnPreRoot;
-        public event PostRootHandler OnPostRoot;
+        public event PreTraversalHandler? OnPreTraversal;
+        public event PreRootHandler? OnPreRoot;
+        public event SplitHandler? OnSplit;
+        public event EndParallelSegmentHandler? OnEndParallelSegment;
+        public event JoinHandler? OnJoin;
+        public event NodeHandler? OnProcessNode;
+        public event PostRootHandler? OnPostRoot;
+        public event PostTraversalHandler? OnPostTraversal;
 
-        //private HlxFile HlxFile;
+        // When copying subgraphs to another graph, we create new Nodes in the
+        // target graph. This structures maps serialNumber for Nodes in the
+        // source graph to the correpsonding "replacement" node in the target
+        // graph. So once we have created the replacement node, we use it when
+        // creating subsequent edges
+        private readonly Dictionary<int, Node> copiedNodesMap = new(100);
+
         public readonly string Name = "";
         public readonly string FQN = "";
-        private readonly List<Dsp> Dsp = new(2); // populated gr the HlxDsp data in the Json file
+        public readonly List<Dsp> Dsp = new(2); // populated gr the HlxDsp data in the Json file
         private readonly AdjacencyGraph<Node, Edge<Node>> presetGraph = new();
         public Preset(string fqn)
         {
@@ -96,7 +102,6 @@ namespace HXSearch
                     }
                 }
             } while (needToCheckAgain);
-
         }
         private void CloseOpenSplits(AdjacencyGraph<Node, Edge<Node>> gr)
         {
@@ -112,11 +117,11 @@ namespace HXSearch
                                             n => null != n.Split &&
                                             (n.Model.Category == ModelCategory.Output || n.Model.Category == ModelCategory.Dummy)
                                             && 0 == gr.OutDegree(n))
-                                        .OrderBy(n => n.Split.SerialNumber)];
+                                        .OrderBy(n => n.Split?.SerialNumber)];
 
                 while (null != leafs && leafs.Count >= 2)
                 {
-                    if (leafs[0].Split.SerialNumber == leafs[1].Split.SerialNumber && (leafs[0].Split.OutputPort == leafs[1].Split.OutputPort))
+                    if (leafs[0].Split?.SerialNumber == leafs[1].Split?.SerialNumber && (leafs[0].Split?.OutputPort == leafs[1].Split?.OutputPort))
                     {
                         InsertJoin([leafs[0], leafs[1]]);
                         leafs.RemoveRange(0, 2);
@@ -239,7 +244,6 @@ namespace HXSearch
                 }
             }
         }
-
         private void ConnectDspGraphs(AdjacencyGraph<Node, Edge<Node>> audioOutGraph, AdjacencyGraph<Node, Edge<Node>> audioInGraph)
         {
             // leaf nodes should be outputs
@@ -259,12 +263,9 @@ namespace HXSearch
                     case 4:
 
                         // The output routes to both dsp1 inputs. This is a
-                        // "hidden" split in terms of aggregate signal path.
-                        // It's not a split that shows up in an SABJ topology
-                        // inside a single DSP but it does in fact introduce a
-                        // parallel path in the aggregate signal chain. So we
-                        // need to add a split here before connecting to the
-                        // dsp1 inputs
+                        // "hidden" split because it introduces a parallel path
+                        // in the aggregate signal chain. So we add a split
+                        // before connecting to the dsp1 inputs
                         Node impliedSplit = NodeFactory.Instance.NewNode(new HlxSplit() { model = ModelId.ImpliedSplit.ToString() });
                         audioOutGraph.AddVerticesAndEdge(new Edge<Node>(audioOutNode, impliedSplit));
 
@@ -294,14 +295,6 @@ namespace HXSearch
                 CopyToPresetGraphStartingAt(audioInGraph, toInputNode);
             }
         }
-
-        // When copying subgraphs to another graph, we create new Nodes in the
-        // target graph. This structures maps serialNumber for Nodes in the
-        // source graph to the correpsonding "replacement" node in the target
-        // graph. So once we have created the replacement node, we use it when
-        // creating subsequent edges
-        private readonly Dictionary<int, Node> copiedNodesMap = new(100);
-
         private void CopyToPresetGraphStartingAt(
             AdjacencyGraph<Node, Edge<Node>> sourceGraph,
             Node copyFromSourceRoot
@@ -311,7 +304,6 @@ namespace HXSearch
             dfs.ExamineEdge += Dfs_ProcessEdge;
             dfs.Compute(copyFromSourceRoot); // travers starting at the given source node
             dfs.ExamineEdge -= Dfs_ProcessEdge;
-
         }
         private void Dfs_ProcessEdge(Edge<Node> edge)
         {
@@ -319,10 +311,8 @@ namespace HXSearch
                 copiedNodesMap.Add(edge.Source.SerialNumber, NodeFactory.Instance.NewNode(edge.Source.Block));
             if (!copiedNodesMap.ContainsKey(edge.Target.SerialNumber))
                 copiedNodesMap.Add(edge.Target.SerialNumber, NodeFactory.Instance.NewNode(edge.Target.Block));
-
             presetGraph.AddVerticesAndEdge(new Edge<Node>(copiedNodesMap[edge.Source.SerialNumber], copiedNodesMap[edge.Target.SerialNumber]));
         }
-
         public List<string> GraphToStrings()
         {
             // show all graph contents
@@ -331,162 +321,45 @@ namespace HXSearch
             foreach (Edge<Node> e in presetGraph.Edges) lines.Add(e.ToString());
             return lines;
         }
-
-        private const int indentSize = 4;
-        private const string indentStock = "                                                                                                                        ";
-        private string indent(int level) { return indentStock[0..(level * indentSize)]; }
-        public List<string> DisplayAll(bool showConnections)
+        private static void PushFirstTarget(Stack<Node?> stack, AdjacencyGraph<Node, Edge<Node>> gr, Node? n)
         {
-            int lvl = 1;
-            Stack<Node?> nextNode = new(); // stack of tuples: node to proc
-
-            List<string> lines = new(presetGraph.EdgeCount * 2)
-            {
-                "",
-                "",
-                $"Preset display name: {Name}",
-                $"Preset file:         {FQN}",
-                $"Topology:            {Dsp[0].Topology} {Dsp[1].Topology}"
-            };
-
-            // If the graph is correctly constructed and the preset is as
-            // expected, the only roots will be non-zero inputs, which are true
-            // external inputs. But we defensively filter the roots with these
-            // conditions anyway
-            foreach (Node rootInput in presetGraph.Roots().Where(n => n.Block is HlxInput inp && 0 != inp.input))
-            {
-                StringBuilder sbSig = new StringBuilder(50);
-                HlxInput? inp = rootInput.Block as HlxInput;
-                lines.Add("");
-                lines.Add($"=== dsp{inp?.dspNum} input{inp?.inputNum} ===============");
-
-                if (rootInput != null)
-                    nextNode.Push(rootInput);
-
-                while (nextNode.Count > 0)
-                {
-                    Node? n = nextNode.Pop();
-
-                    if (n.Block is HlxSplit split)
-                    {
-                        DoNodeInDisplayTraversal(lines, n, lvl, showConnections);
-                        sbSig.Append(DoNodeInSignatureTraversal(n));
-                        nextNode.Push(null); // this will mark the end of this split's outedges
-                        List<Edge<Node>> outEdges = [.. presetGraph.OutEdges(n).ToList()];
-                        for (int i = outEdges.Count - 1; i >= 0; i--)
-                            nextNode.Push(outEdges[i].Target);
-                        lvl++;
-                    }
-                    else if (n.Block is HlxJoin)
-                    {
-                        if (0 == nextNode.Count)
-                        {
-                            // a join with no preceding split is a no-op, just keep going
-                            PushFirstTarget(nextNode, presetGraph, n);
-                        }
-                        else if (null == nextNode.Peek())
-                        {
-                            // all of this join's splits have been traversed
-                            nextNode.Pop(); // remove and discard the marker
-                            lvl--;
-                            DoNodeInDisplayTraversal(lines, n, lvl, showConnections, showJoinAsClosure: true);
-                            sbSig.Append(DoNodeInSignatureTraversal(n, JoinIsClosure: true));
-                            PushFirstTarget(nextNode, presetGraph, n);
-                        }
-                        else
-                        {
-                            // nothing to push, the traversal will continue from next item on the stack
-                            DoNodeInDisplayTraversal(lines, n, lvl, showConnections, showJoinAsClosure: false);
-                            sbSig.Append(DoNodeInSignatureTraversal(n, JoinIsClosure: false));
-                        }
-                    }
-                    else
-                    {
-                        DoNodeInDisplayTraversal(lines, n, lvl, showConnections, showJoinAsClosure: false);
-                        sbSig.Append(DoNodeInSignatureTraversal(n, JoinIsClosure: false));
-                        PushFirstTarget(nextNode, presetGraph, n);
-                    }
-                }
-                lines.Add($"Signature:           {sbSig}");
-            }
-            return lines;
-        }
-        private void PushFirstTarget(Stack<Node?> stack, AdjacencyGraph<Node, Edge<Node>> gr, Node n)
-        {
+            if (null == n) return;
             Edge<Node>? e = gr.OutEdges(n).FirstOrDefault();
             if (null != e) stack.Push(e.Target);
         }
-        private void DoNodeInDisplayTraversal(List<string> lines, Node? n, int indentLevel, bool showConnections, bool showJoinAsClosure = false)
+        public void Traverse(IEnumerable<Node>? roots = null)
         {
-            if (n == null) return;
-
-            switch (n.Model.Category)
-            {
-                case ModelCategory.Split:
-                    lines.Add($"{indent(indentLevel)}(");
-                    break;
-                case ModelCategory.Merge:
-                    lines.Add($"{indent(indentLevel)}{(showJoinAsClosure ? ")" : "--- and ---")}");
-                    break;
-                case ModelCategory.Dummy:
-                case ModelCategory.Input:
-                case ModelCategory.Output:
-                    if (showConnections) lines.Add($"{indent(indentLevel)}{n}");
-                    break;
-                default:
-                    lines.Add($"{indent(indentLevel)}{n}");
-                    break;
-            }
-        }
-        private string DoNodeInSignatureTraversal(Node? n, bool JoinIsClosure = false)
-        {
-            if (n == null) return "";
-            switch (n.Model.Category)
-            {
-                case ModelCategory.Split: return "(";
-                case ModelCategory.Merge: return JoinIsClosure ? ")" : "|";
-                case ModelCategory.Dummy: return "";
-                case ModelCategory.Input:
-                case ModelCategory.Output: return n.Model.Signature();
-                default: return n.Model.Signature();
-            }
-        }
-        public void Traverse(AdjacencyGraph<Node, Edge<Node>> graph, IEnumerable<Node>? roots = null)
-        {
+            AdjacencyGraph<Node, Edge<Node>> graph = presetGraph;
             int lvl = 1;
             Stack<Node?> nextNode = new(); // stack of tuples: node to proc
 
             OnPreTraversal?.Invoke(graph, this);
 
-            // if they don't supply a collection of roots to start from we use
-            // the graphs roots, which, if the graph is correctly constructed
-            // and the preset is as expected, will be non-zero inputs, which are
-            // true external inputs. 
             if (null == roots)
+                // if they don't supply roots to start from we use the graph's
+                // roots. If the graph is correctly constructed and the preset
+                // is as expected these will be non-zero inputs, which are true
+                // external inputs. But we filter defensively anyway.
                 roots = graph.Roots().Where(n => n.Block is HlxInput inp && 0 != inp.input);
 
             foreach (Node rootInput in roots)
             {
-                if (rootInput != null)
-                {
-                    OnPreRoot?.Invoke(graph, this, rootInput);
-                    nextNode.Push(rootInput);
-                }
-
+                OnPreRoot?.Invoke(graph, this, rootInput);
+                nextNode.Push(rootInput);
                 while (nextNode.Count > 0)
                 {
                     Node? n = nextNode.Pop();
 
-                    if (n.Block is HlxSplit split)
+                    if (n?.Block is HlxSplit split)
                     {
-                        OnSplit(graph, this, n, lvl);
+                        OnSplit?.Invoke(graph, this, n, lvl);
                         nextNode.Push(null); // this will mark the end of this split's outedges
                         List<Edge<Node>> outEdges = [.. presetGraph.OutEdges(n).ToList()];
                         for (int i = outEdges.Count - 1; i >= 0; i--)
                             nextNode.Push(outEdges[i].Target);
                         lvl++;
                     }
-                    else if (n.Block is HlxJoin)
+                    else if (n?.Block is HlxJoin)
                     {
                         if (0 == nextNode.Count)
                         {
@@ -498,24 +371,24 @@ namespace HXSearch
                             // all of this join's splits have been traversed
                             nextNode.Pop(); // remove and discard the marker
                             lvl--;
-                            OnJoin(graph, this, n, lvl);
+                            OnJoin?.Invoke(graph, this, n, lvl);
                             PushFirstTarget(nextNode, presetGraph, n);
                         }
                         else
                         {
                             // nothing to push, the traversal will continue from next item on the stack
-                            OnEndParallelSegment(graph, this, n, lvl);
+                            OnEndParallelSegment?.Invoke(graph, this, n, lvl);
                         }
                     }
                     else
                     {
-                        OnProcessNode(graph, this, n, lvl);
+                        if (null != n) OnProcessNode?.Invoke(graph, this, n, lvl);
                         PushFirstTarget(nextNode, presetGraph, n);
                     }
                 }
-                OnPostRoot(graph, this, rootInput);
+                OnPostRoot?.Invoke(graph, this, rootInput);
             }
-            OnPostTraversal(graph, this);
+            OnPostTraversal?.Invoke(graph, this);
         }
     }
 }

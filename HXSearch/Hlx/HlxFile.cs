@@ -11,8 +11,7 @@ namespace HXSearch.Hlx
         public bool Loaded => !string.IsNullOrEmpty(schema);
         public void Restructure()
         {
-            if (null != data) // protected or encrypted presets won't have a data section
-                data.Restructure();
+            data?.Restructure(); // protected or encrypted presets won't have a data section
         }
         public static HlxFile Load(string fqn)
         {
