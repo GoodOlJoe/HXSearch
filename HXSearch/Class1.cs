@@ -85,20 +85,27 @@ namespace HXSearch
                 {
 
                     Preset pre = new(fqn);
-                    //List<string> a = pre.DisplayAll(showConnections: false);
-                    //File.AppendAllLines(outFQN, a);
-
                     TraversalHandlers.ConsoleDisplay cd = new(showConnections: true); cd.Subscribe(pre);
                     TraversalHandlers.TrueSignature trueSig = new(); trueSig.Subscribe(pre);
 
-                    pre.Traverse();
+                    pre.FullTraverse();
 
                     File.AppendAllLines(outFQN, cd.OutputLines);
-                    File.AppendAllText(outFQN, $"True signature: {trueSig.Signature}");
+                    File.AppendAllText(outFQN, $"True signature: {trueSig.Signature}\n");
 
                     cd.UnSubscribe(pre);
                     trueSig.UnSubscribe(pre);
 
+                    TraversalHandlers.LinearPathSignature linearSig = new(); linearSig.Subscribe(pre);
+
+                    pre.LinearPathsTraverse();
+
+                    int pathNum = 1;
+                    foreach (string s in linearSig.Paths)
+                        File.AppendAllText(outFQN, $"Linear path {pathNum++}: {s}\n");
+
+
+                    linearSig.UnSubscribe(pre);
                 }
                 catch (Exception ex)
                 {

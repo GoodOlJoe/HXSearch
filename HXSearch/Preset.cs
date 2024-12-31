@@ -3,6 +3,7 @@ using HXSearch.Models;
 using QuikGraph;
 using QuikGraph.Algorithms;
 using QuikGraph.Algorithms.Search;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 
 namespace HXSearch
@@ -14,19 +15,23 @@ namespace HXSearch
     {
         internal delegate void PreTraversalHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset);
         internal delegate void PreRootHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node root);
+        internal delegate void PreLinearPathHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node root);
         internal delegate void SplitHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
         internal delegate void EndParallelSegmentHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
         internal delegate void JoinHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
         internal delegate void NodeHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
+        internal delegate void PostLinearPathHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, List<Node> path);
         internal delegate void PostRootHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node root);
         internal delegate void PostTraversalHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset);
 
         public event PreTraversalHandler? OnPreTraversal;
         public event PreRootHandler? OnPreRoot;
+        public event PreLinearPathHandler? OnPreLinearPath;
         public event SplitHandler? OnSplit;
         public event EndParallelSegmentHandler? OnEndParallelSegment;
         public event JoinHandler? OnJoin;
         public event NodeHandler? OnProcessNode;
+        public event PostLinearPathHandler? OnPostLinearPath;
         public event PostRootHandler? OnPostRoot;
         public event PostTraversalHandler? OnPostTraversal;
 
@@ -298,6 +303,7 @@ namespace HXSearch
         private void CopyToPresetGraphStartingAt(
             AdjacencyGraph<Node, Edge<Node>> sourceGraph,
             Node copyFromSourceRoot
+
             )
         {
             var dfs = new DepthFirstSearchAlgorithm<Node, Edge<Node>>(sourceGraph);
@@ -321,13 +327,57 @@ namespace HXSearch
             foreach (Edge<Node> e in presetGraph.Edges) lines.Add(e.ToString());
             return lines;
         }
+        private static Node? FirstTarget(AdjacencyGraph<Node, Edge<Node>> gr, Node? n) => null == n ? null : gr.OutEdges(n).FirstOrDefault()?.Target;
         private static void PushFirstTarget(Stack<Node?> stack, AdjacencyGraph<Node, Edge<Node>> gr, Node? n)
         {
             if (null == n) return;
             Edge<Node>? e = gr.OutEdges(n).FirstOrDefault();
             if (null != e) stack.Push(e.Target);
         }
-        public void Traverse(IEnumerable<Node>? roots = null)
+        public void LinearPathsTraverse(IEnumerable<Node>? roots = null)
+        {
+            AdjacencyGraph<Node, Edge<Node>> graph = presetGraph;
+
+            OnPreTraversal?.Invoke(graph, this);
+            roots ??= graph.Roots().Where(n => n.Block is HlxInput inp && 0 != inp.input);
+
+            foreach (Node rootInput in roots)
+            {
+                Stack<List<Node>> paths = new(10);
+                OnPreRoot?.Invoke(graph, this, rootInput);
+                paths.Push(new List<Node>([rootInput]));
+
+                while (paths.Count > 0)
+                {
+                    List<Node> path = paths.Pop();
+                    Node n = path.Last();
+                    Node? next = FirstTarget(graph, n);
+
+                    if (n.Model.Category == ModelCategory.Split)
+                    {
+                        OnSplit?.Invoke(graph, this, n, 0);
+                        List<Edge<Node>> outEdges = [.. presetGraph.OutEdges(n).ToList()];
+                        for (int i = 1; i < outEdges.Count; i++)
+                            paths.Push(new List<Node>(path) { outEdges[i].Target }); // push a new list representing the current path plus the next target
+                    }
+
+                    OnProcessNode?.Invoke(graph, this, n, 0);
+
+                    if (null == next)
+                    {
+                        OnPostLinearPath?.Invoke(graph, this, path);
+                    }
+                    else
+                    {
+                        path.Add(next);
+                        paths.Push(path);
+                    }
+                }
+                OnPostRoot?.Invoke(graph, this, rootInput);
+            }
+            OnPostTraversal?.Invoke(graph, this);
+        }
+        public void FullTraverse(IEnumerable<Node>? roots = null)
         {
             AdjacencyGraph<Node, Edge<Node>> graph = presetGraph;
             int lvl = 1;
