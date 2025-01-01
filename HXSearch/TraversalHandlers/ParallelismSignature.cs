@@ -40,29 +40,30 @@ namespace HXSearch.TraversalHandlers
         }
         internal void SplitHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel)
         {
-            ParaTag taggedSplit = new() { Tag = tag, Seq = nextSequence, Node = n };
-            TaggedNodes.Add(taggedSplit);
+            // this was halfway between one implementation and another when I changed approaches
 
-            Stack.Push(taggedSplit.Signature); // push the tag of the split itself
+            //ParaTag taggedSplit = new() { Tag = tag, Seq = nextSequence, Node = n }; // the split itself goes on the lists
+            //TaggedNodes.Add(taggedSplit); 
 
-            List<Edge<Node>> outEdges = graph.OutEdges(n).ToList();
-            for (int i = 1; i < outEdges.Count; i++)
-                Stack.Push($"{tag}.{i+1}-1"); // a tag representing the first item on each of this's out edges (other than the first
-            tag = $"{tag}.1";
-            nextSequence = 1;
+            //Stack.Push(taggedSplit); // now push the split itself
+
+            //List<Edge<Node>> outEdges = graph.OutEdges(n).ToList();
+            //for (int i = 1; i < outEdges.Count; i++)
+            //    Stack.Push($"{tag}.{i+1}-1"); // a tag representing the first item on each of this's out edges (other than the first
+            //tag = $"{tag}.1";
+            //nextSequence = 1;
         }
         internal void EndParallelSegmentHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel)
         {
-            if (0 == Stack.Count) return; // join without a preceding split
-            tag = Stack.Pop();
+            // this was halfway between one implementation and another when I changed approaches
+            //if (0 == Stack.Count) return; // join without a preceding split
+            //tag = Stack.Pop();
         }
         internal void JoinHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel)
         {
-            if (0 == Stack.Count) return; // join without a preceding split
-            tag = Stack.Pop(); // this will be the split itself
-            //nextSequence = TaggedNodes[tag].Seq;
-
-
+            // this was halfway between one implementation and another when I changed approaches
+            //if (0 == Stack.Count) return; // join without a preceding split
+            //tag = Stack.Pop(); // this will be the split itself
         }
         internal void NodeHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel)
         {

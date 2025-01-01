@@ -95,7 +95,7 @@ namespace HXSearch
                     Preset pre = new(fqn);
                     TraversalHandlers.ConsoleDisplay cd = new(showConnections: true); cd.Subscribe(pre);
                     TraversalHandlers.TrueSignature trueSig = new(); trueSig.Subscribe(pre);
-                    TraversalHandlers.ParallelismSignature paraSig = new(); paraSig.Subscribe(pre);
+                    //TraversalHandlers.ParallelismSignature paraSig = new(); paraSig.Subscribe(pre);
 
                     pre.FullTraverse();
 
@@ -104,7 +104,7 @@ namespace HXSearch
 
                     cd.UnSubscribe(pre);
                     trueSig.UnSubscribe(pre);
-                    paraSig.UnSubscribe(pre);
+                    //paraSig.UnSubscribe(pre);
 
                     //=============================================
                     //==== linear traversals -- process all linear paths
