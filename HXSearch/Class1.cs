@@ -7,19 +7,22 @@ namespace HXSearch
     {
         private readonly List<string> inputs =
         [
-            // 2 DEEP NEST
-            "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.60 2023 04 26 3.60 Factory Presets\\Setlist8-TEMPLATES\\Preset011-4 Tone Switcher.hlx",
-                
+            // AB AB but all from the same input and to same output
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\ABAB 1 In 1 Out.hlx",
+
+            // single canonical SABJ on dsp0, nothing on dsp1
+            "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.80 2024 12 16 with my presets\\Setlist1-FACTORY 1\\Preset042-BAS_Hire Me!.hlx",
+
             // dual cab
             "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.60 2023 04 26 3.60 Factory Presets\\Setlist1-FACTORY 1\\Preset000-US Double Nrm.hlx",
 
+            // 2 DEEP NEST
+            "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.60 2023 04 26 3.60 Factory Presets\\Setlist8-TEMPLATES\\Preset011-4 Tone Switcher.hlx",
+                
             // Amp+Cab combos
             "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - 2021 Individual backups after Full Backup failed\\Via individual drag and drop\\Setlists\\01 FACTORY 1\\JEFF SCHROEDER 1.hlx",
 
             "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.80 2024 12 16 with my presets\\Setlist8-TEMPLATES\\Preset016-MIDI Bass Pedals.hlx",
-
-            // AB AB but all from the same input and to same output
-            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\ABAB 1 In 1 Out.hlx",
 
             // many different physical inputs and outputs 
             "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Current Setlists\\2020 02 02\\Templates\\Gtr+Vox+Bas+Keys.hlx",
@@ -53,8 +56,6 @@ namespace HXSearch
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\sab no a - abj.hlx",
 
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\sab - abj.hlx",
-            "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.80 2024 12 16 with my presets\\Setlist1-FACTORY 1\\Preset042-BAS_Hire Me!.hlx",
-
             // "working" but not sure if I should do as described in the comment below
             // doesn't crash but illustrates that i'm not treating an input as a split when multiple paths start from teh same input. Not sure i've thought this through but probably I should be doing that
             "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.80 2024 12 07 Helix Floor Backup with 3.80\\Setlist2-FACTORY 2\\Preset051-Knife Fight.hlx",

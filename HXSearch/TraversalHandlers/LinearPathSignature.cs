@@ -20,8 +20,8 @@ namespace HXSearch.TraversalHandlers
             foreach (Node n in path.Where(n =>
                 null != n.Model &&
                 n.Model.Category != ModelCategory.Split &&
-                n.Model.Category != ModelCategory.Merge &&
-                n.Model.Category != ModelCategory.Dummy))
+                n.Model.Category != ModelCategory.Merge )) // &&
+                //n.Model.Category != ModelCategory.Dummy))
             {
                 sb.Append(n.Model.Signature);
             }

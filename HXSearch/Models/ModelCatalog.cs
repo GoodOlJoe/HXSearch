@@ -681,7 +681,7 @@
         ImpliedSplit,
         ImpliedDualCabSplit,
         ImpliedJoin,
-        Dummy,
+        //Dummy,
         Unknown,
     }
     public enum ModelCategory
@@ -707,17 +707,17 @@
         Input,
         Output,
         Implied,
-        Dummy,
+        //Dummy,
         Unknown
     };
     internal static class ModelCatalog
     {
         public static Model GetModel(string modelName)
         {
-            if (Catalog.ContainsKey(modelName))
-                return Catalog[modelName];
-            else
-                return new Model(modelName, ModelId.Unknown, ModelCategory.Unknown, "Unknown", "Unknown");
+            return
+                Catalog.TryGetValue(modelName, out Model? value) ?
+                value :
+                new Model(modelName, ModelId.Unknown, ModelCategory.Unknown, "Unknown", "Unknown");
         }
         private static readonly Dictionary<string, Model> Catalog = new()
         {
@@ -1397,7 +1397,7 @@
             { "HD2_AppDSPFlow2Input", new Model("HD2_AppDSPFlow2Input", ModelId.HD2_AppDSPFlow2Input, ModelCategory.Input, "Input", "Input") },
             { "HD2_AppDSPFlowOutput", new Model("HD2_AppDSPFlowOutput", ModelId.HD2_AppDSPFlowOutput, ModelCategory.Output, "Output", "Output") },
             { "HD2_AppDSPFlowJoin", new Model("HD2_AppDSPFlowJoin", ModelId.HD2_AppDSPFlowJoin, ModelCategory.Merge, "Merge", "Merge") },
-            { "Dummy", new Model("Dummy", ModelId.Dummy, ModelCategory.Dummy, "Dummy", "Dummy") },
+            //{ "Dummy", new Model("Dummy", ModelId.Dummy, ModelCategory.Dummy, "Dummy", "Dummy") },
             { "ImpliedSplit", new Model("ImpliedSplit", ModelId.ImpliedSplit, ModelCategory.Split, "Implied Split", "Implied Split") },
             { "ImpliedDualCabSplit", new Model("ImpliedDualCabSplit", ModelId.ImpliedDualCabSplit, ModelCategory.Split, "DualCab Split", "DualCab Split") },
             { "ImpliedJoin", new Model("ImpliedJoin", ModelId.ImpliedJoin, ModelCategory.Merge, "Implied Join", "Implied Join") },

@@ -32,7 +32,7 @@ namespace HXSearch.TraversalHandlers
         internal void JoinHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel) => sb.Append(')');
         internal void NodeHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel)
         {
-            if (null == n || null == n.Model || n.Model.Category == ModelCategory.Dummy) return;
+            if (null == n || null == n.Model) return; // || n.Model.Category == ModelCategory.Dummy) return;
             sb.Append(n.Model.Signature);
         }
     }

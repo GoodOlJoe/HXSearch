@@ -69,7 +69,7 @@ namespace HXSearch
                 // connect Dsp0 audio outs to Dsp1 audio ins as necessary
                 ConnectDspGraphs(audioOutGraph: presetGraph, audioInGraph: Dsp[1].DspGraph);
 
-                // if there are any signal chains in dsp1 that aren't connected dsp0 outputs, pull them into the preset-level graph
+                // if there are any signal chains in dsp1 that aren't connected to dsp0 outputs, pull them into the preset-level graph
                 ImportStandalonePaths(targetGraph: presetGraph, sourceGraph: Dsp[1].DspGraph);
 
                 // if we have multiple chains from the same physical input, show
@@ -124,7 +124,7 @@ namespace HXSearch
                 List<Node> leafs = [.. gr.Vertices
                                         .Where(
                                             n => null != n.Split &&
-                                            (n.Model.Category == ModelCategory.Output || n.Model.Category == ModelCategory.Dummy)
+                                            (n.Model.Category == ModelCategory.Output  || n.Model.Category == ModelCategory.Merge)
                                             && 0 == gr.OutDegree(n))
                                         .OrderBy(n => n.Split?.SerialNumber)];
 
@@ -176,19 +176,23 @@ namespace HXSearch
         }
         private void InsertJoin(Node[] nodes)
         {
-            // add a join to the graph, inserting it between each Node in the
-            // given array of nodes and those nodes downstream targets. And when
-            // we insert a join we also insert an implied dummy node after it,
-            // so that when we propagate split back pointers there will be
-            // something after the join to represent the end of a split path.
+            // Add a join to the graph, inserting it between each Node in the
+            // given array of nodes and those nodes downstream targets.
+
+            // And when we insert a join we also insert an implied dummy node
+            // after it, so that when we propagate split back pointers there
+            // will be something after the join to represent the end of a split
+            // path.
+
             // That will happen when the preset ends with three or more
-            // unterminated parallel paths (see "Unicorn in a Box" preset). In
-            // that scenario we have to close the first one, then close the
+            // unterminated parallel paths (see "Unicorn in a Box" preset).
+
+            // In that scenario we have to close the first one, then close the
             // second one just behind the first one.
 
             Node j = NodeFactory.Instance.NewNode(new HlxJoin() { model = ModelId.ImpliedJoin.ToString() });
-            Node dummy = NodeFactory.Instance.NewNode(new HlxBlock() { model = ModelId.Dummy.ToString() });
-            presetGraph.AddVerticesAndEdge(new Edge<Node>(j, dummy));
+            //Node dummy = NodeFactory.Instance.NewNode(new HlxBlock() { model = ModelId.Dummy.ToString() });
+            //presetGraph.AddVerticesAndEdge(new Edge<Node>(j, dummy));
 
             foreach (Node n in nodes)
             {
@@ -200,7 +204,8 @@ namespace HXSearch
                 presetGraph.AddVerticesAndEdge(new Edge<Node>(n, j)); // J becomes the new downstream target for this node
 
                 // add the original downstream nodes as J's downstream targets
-                foreach (Edge<Node> e in originalOutEdges) presetGraph.AddVerticesAndEdge(new Edge<Node>(dummy, e.Target));
+                //foreach (Edge<Node> e in originalOutEdges) presetGraph.AddVerticesAndEdge(new Edge<Node>(dummy, e.Target));
+                foreach (Edge<Node> e in originalOutEdges) presetGraph.AddVerticesAndEdge(new Edge<Node>(j, e.Target));
             }
         }
         private void PropagateSplitsAndOutputPorts()
@@ -227,14 +232,24 @@ namespace HXSearch
         }
         private void Dfs_BackConnectSplits(Edge<Node> edge)
         {
-            if (edge.Source.Model.Category == ModelCategory.Split)
+            if (edge.Target.Model.Category == ModelCategory.Merge)
             {
-                edge.Target.Split = edge.Source;
-            }
-            else if (edge.Source.Model.Category == ModelCategory.Merge)
-            {
+                // The TARGET is a join. Joins belong to the non-split path of
+                // the corresponding split. That is, they are not one of the
+                // corresponding split's parallel path, they are on the same
+                // path as the corresponding split.
                 edge.Target.Split = edge.Source.Split?.Split;
             }
+            else if (edge.Source.Model.Category == ModelCategory.Split)
+            {
+                // The SOURCE is a split (and the target is not a join). The
+                // target is on one of it's parent split's parallel paths.
+                edge.Target.Split = edge.Source;
+            }
+            //else if (edge.Source.Model.Category == ModelCategory.Merge)
+            //{
+            //    edge.Target.Split = edge.Source.Split?.Split;
+            //}
             else
             {
                 edge.Target.Split = edge.Source.Split;

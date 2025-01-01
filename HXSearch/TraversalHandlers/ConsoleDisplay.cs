@@ -74,9 +74,9 @@ namespace HXSearch.TraversalHandlers
             bool showIt = true;
             switch (n.Model.Category)
             {
-                case ModelCategory.Dummy:
-                    showIt = false;
-                    break;
+                //case ModelCategory.Dummy:
+                //    showIt = false;
+                //    break;
                 case ModelCategory.Input:
                 case ModelCategory.Output:
                     showIt = ShowConnections;
