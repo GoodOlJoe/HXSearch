@@ -10,9 +10,9 @@ namespace HXSearch
 {
     // QuikGraph library https://github.com/KeRNeLith/QuikGraph/wiki/README
 
-
     internal class Preset
     {
+        #region Delegates and Events
         internal delegate void PreTraversalHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset);
         internal delegate void PreRootHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node root);
         internal delegate void PreLinearPathHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node root);
@@ -34,18 +34,21 @@ namespace HXSearch
         public event PostLinearPathHandler? OnPostLinearPath;
         public event PostRootHandler? OnPostRoot;
         public event PostTraversalHandler? OnPostTraversal;
-
+        #endregion Delegates and Events
+        #region public Properties
+        public readonly string Name = "";
+        public readonly string FQN = "";
+        public readonly List<Dsp> Dsp = new(2); // populated gr the HlxDsp data in the Json file
+        #endregion public Properties
+        #region private Properties
+        private readonly AdjacencyGraph<Node, Edge<Node>> presetGraph = new();
         // When copying subgraphs to another graph, we create new Nodes in the
         // target graph. This structures maps serialNumber for Nodes in the
         // source graph to the correpsonding "replacement" node in the target
         // graph. So once we have created the replacement node, we use it when
         // creating subsequent edges
         private readonly Dictionary<int, Node> copiedNodesMap = new(100);
-
-        public readonly string Name = "";
-        public readonly string FQN = "";
-        public readonly List<Dsp> Dsp = new(2); // populated gr the HlxDsp data in the Json file
-        private readonly AdjacencyGraph<Node, Edge<Node>> presetGraph = new();
+        #endregion private Properties
         public Preset(string fqn)
         {
             NodeFactory.Instance.Reset();
@@ -80,6 +83,7 @@ namespace HXSearch
                 CloseOpenSplits(presetGraph);
             }
         }
+        #region Private methods
         private void HandleParallelInputs(AdjacencyGraph<Node, Edge<Node>> gr)
         {
             bool needToCheckAgain;
@@ -300,11 +304,7 @@ namespace HXSearch
                 CopyToPresetGraphStartingAt(audioInGraph, toInputNode);
             }
         }
-        private void CopyToPresetGraphStartingAt(
-            AdjacencyGraph<Node, Edge<Node>> sourceGraph,
-            Node copyFromSourceRoot
-
-            )
+        private void CopyToPresetGraphStartingAt(AdjacencyGraph<Node, Edge<Node>> sourceGraph, Node copyFromSourceRoot)
         {
             var dfs = new DepthFirstSearchAlgorithm<Node, Edge<Node>>(sourceGraph);
             dfs.ExamineEdge += Dfs_ProcessEdge;
@@ -319,6 +319,15 @@ namespace HXSearch
                 copiedNodesMap.Add(edge.Target.SerialNumber, NodeFactory.Instance.NewNode(edge.Target.Block));
             presetGraph.AddVerticesAndEdge(new Edge<Node>(copiedNodesMap[edge.Source.SerialNumber], copiedNodesMap[edge.Target.SerialNumber]));
         }
+        private static Node? FirstTarget(AdjacencyGraph<Node, Edge<Node>> gr, Node? n) => null == n ? null : gr.OutEdges(n).FirstOrDefault()?.Target;
+        private static void PushFirstTarget(Stack<Node?> stack, AdjacencyGraph<Node, Edge<Node>> gr, Node? n)
+        {
+            if (null == n) return;
+            Edge<Node>? e = gr.OutEdges(n).FirstOrDefault();
+            if (null != e) stack.Push(e.Target);
+        }
+        #endregion Private methods
+        #region Public interface methods
         public List<string> GraphToStrings()
         {
             // show all graph contents
@@ -326,13 +335,6 @@ namespace HXSearch
             foreach (var v in presetGraph.Roots<Node, Edge<Node>>()) lines.Add($"Root {v}");
             foreach (Edge<Node> e in presetGraph.Edges) lines.Add(e.ToString());
             return lines;
-        }
-        private static Node? FirstTarget(AdjacencyGraph<Node, Edge<Node>> gr, Node? n) => null == n ? null : gr.OutEdges(n).FirstOrDefault()?.Target;
-        private static void PushFirstTarget(Stack<Node?> stack, AdjacencyGraph<Node, Edge<Node>> gr, Node? n)
-        {
-            if (null == n) return;
-            Edge<Node>? e = gr.OutEdges(n).FirstOrDefault();
-            if (null != e) stack.Push(e.Target);
         }
         public void LinearPathsTraverse(IEnumerable<Node>? roots = null)
         {
@@ -440,5 +442,6 @@ namespace HXSearch
             }
             OnPostTraversal?.Invoke(graph, this);
         }
+        #endregion Public interface methods
     }
 }
