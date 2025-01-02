@@ -7,6 +7,9 @@ namespace HXSearch
     {
         private readonly List<string> inputs =
         [
+            // 2 DEEP NEST
+            "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.60 2023 04 26 3.60 Factory Presets\\Setlist8-TEMPLATES\\Preset011-4 Tone Switcher.hlx",
+                
             // AB AB but all from the same input and to same output
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\ABAB 1 In 1 Out.hlx",
 
@@ -16,9 +19,6 @@ namespace HXSearch
             // dual cab
             "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.60 2023 04 26 3.60 Factory Presets\\Setlist1-FACTORY 1\\Preset000-US Double Nrm.hlx",
 
-            // 2 DEEP NEST
-            "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.60 2023 04 26 3.60 Factory Presets\\Setlist8-TEMPLATES\\Preset011-4 Tone Switcher.hlx",
-                
             // Amp+Cab combos
             "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - 2021 Individual backups after Full Backup failed\\Via individual drag and drop\\Setlists\\01 FACTORY 1\\JEFF SCHROEDER 1.hlx",
 
@@ -94,18 +94,23 @@ namespace HXSearch
                     //=============================================
 
                     Preset pre = new(fqn);
+
+                    // one traversal to assign traversal IDs to each node, which
+                    // we use in the parallelism processing
+                    TraversalHandlers.SetTraversalId TravSet = new(); TravSet.Subscribe(pre);
+                     pre.FullTraverse();
+                    TravSet.UnSubscribe(pre);
+
                     TraversalHandlers.ConsoleDisplay cd = new(showConnections: true); cd.Subscribe(pre);
                     TraversalHandlers.TrueSignature trueSig = new(); trueSig.Subscribe(pre);
-                    //TraversalHandlers.ParallelismSignature paraSig = new(); paraSig.Subscribe(pre);
 
-                    pre.FullTraverse();
+                     pre.FullTraverse();
 
                     File.AppendAllLines(outFQN, cd.OutputLines);
                     File.AppendAllText(outFQN, $"True signature: {trueSig.Signature}\n");
 
                     cd.UnSubscribe(pre);
                     trueSig.UnSubscribe(pre);
-                    //paraSig.UnSubscribe(pre);
 
                     //=============================================
                     //==== linear traversals -- process all linear paths
