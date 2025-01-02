@@ -112,6 +112,12 @@ namespace HXSearch
                     cd.UnSubscribe(pre);
                     trueSig.UnSubscribe(pre);
 
+                    // one traversal to assign traversal IDs to each node, which
+                    // we use in the parallelism processing
+                    TraversalHandlers.ParallelismSignature paraSigs = new(); paraSigs.Subscribe(pre);
+                    pre.FullTraverse();
+                    paraSigs.UnSubscribe(pre);
+
                     //=============================================
                     //==== linear traversals -- process all linear paths
                     //=============================================
@@ -122,7 +128,7 @@ namespace HXSearch
 
                     int pathNum = 1;
                     foreach (string s in linearSig.Paths)
-                        File.AppendAllText(outFQN, $"Linear path {pathNum++}: {s}\n");
+                        File.AppendAllText(outFQN, $"Linear Path {pathNum++}: {s}\n");
 
                     linearSig.UnSubscribe(pre);
                 }

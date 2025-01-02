@@ -210,7 +210,7 @@ namespace HXSearch
         //                n = pathBHead;
         //                pathBHead = null;
         //            }
-        //            else if (n.Block is HlxJoin joinSecondTime) // no path to backtrack to, we're hitting the join after traversing our split's second path
+        //            else if (n.Block is HlxJoin joinSecondTime) // no Path to backtrack to, we're hitting the join after traversing our split's second Path
         //            {
         //                if (splitDepth > 0)
         //                {
@@ -220,7 +220,7 @@ namespace HXSearch
         //                    splitDepth--;
         //                }
         //                //else we're not in a split, it's just a join from
-        //                //another path coming. It doesn't affect the signal path
+        //                //another Path coming. It doesn't affect the signal Path
         //                //we're currently on...nothing to display, just proceed
 
         //                n = GetNext(next, 0);

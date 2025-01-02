@@ -182,7 +182,7 @@ namespace HXSearch
             // And when we insert a join we also insert an implied dummy node
             // after it, so that when we propagate split back pointers there
             // will be something after the join to represent the end of a split
-            // path.
+            // Path.
 
             // That will happen when the preset ends with three or more
             // unterminated parallel paths (see "Unicorn in a Box" preset).
@@ -234,10 +234,10 @@ namespace HXSearch
         {
             if (edge.Target.Model.Category == ModelCategory.Merge)
             {
-                // The TARGET is a join. Joins belong to the non-split path of
+                // The TARGET is a join. Joins belong to the non-split Path of
                 // the corresponding split. That is, they are not one of the
-                // corresponding split's parallel path, they are on the same
-                // path as the corresponding split.
+                // corresponding split's parallel Path, they are on the same
+                // Path as the corresponding split.
                 edge.Target.Split = edge.Source.Split?.Split;
             }
             else if (edge.Source.Model.Category == ModelCategory.Split)
@@ -287,7 +287,7 @@ namespace HXSearch
                     case 4:
 
                         // The output routes to both dsp1 inputs. This is a
-                        // "hidden" split because it introduces a parallel path
+                        // "hidden" split because it introduces a parallel Path
                         // in the aggregate signal chain. So we add a split
                         // before connecting to the dsp1 inputs
                         Node impliedSplit = NodeFactory.Instance.NewNode(new HlxSplit() { model = ModelId.ImpliedSplit.ToString() });
@@ -375,7 +375,7 @@ namespace HXSearch
                         OnSplit?.Invoke(graph, this, n, 0);
                         List<Edge<Node>> outEdges = [.. presetGraph.OutEdges(n).ToList()];
                         for (int i = 1; i < outEdges.Count; i++)
-                            paths.Push(new List<Node>(path) { outEdges[i].Target }); // push a new list representing the current path plus the next target
+                            paths.Push(new List<Node>(path) { outEdges[i].Target }); // push a new list representing the current Path plus the next target
                     }
 
                     OnProcessNode?.Invoke(graph, this, n, 0);
