@@ -710,15 +710,86 @@
         //Dummy,
         Unknown
     };
+    public enum OutputPortId
+    {
+        Unknown = 0,
+        Multi = 1,
+        Path_2A = 2,
+        Path_2B = 3,
+        Path_2AB = 4,
+        QuarterInch = 5,
+        XLR = 6,
+        Send_1_2 = 7,
+        Send_3_4 = 8,
+        Digital = 9,
+        USB_1_2 = 10,
+        USB_3_4 = 11,
+        USB_5_6 = 12,
+    }
+    public enum InputPortId
+    {
+        Unknown = 00,
+        Multi = 01,
+        Guitar = 02,
+        Aux = 03,
+        Variax = 04,
+        Variax_Magnetics = 05,
+        Mic = 06,
+        Return_1 = 07,
+        Return_2 = 08,
+        Return_3 = 09,
+        Return_4 = 10,
+        Return_1_2 = 11,
+        Return_3_4 = 12,
+        S_PDIF = 13,
+        USB_3_4 = 14,
+        USB_5_6 = 15,
+        USB_7_8 = 16,
+    }
     internal static class ModelCatalog
     {
-        public static Model GetModel(string modelName)
+        private static readonly Dictionary<InputPortId, string> InputPort = new()
         {
-            return
+            {InputPortId.Unknown, "Unknown" },
+            {InputPortId.Multi, "Multi" },
+            {InputPortId.Guitar, "Guitar" },
+            {InputPortId.Aux, "Aux" },
+            {InputPortId.Variax, "Variax" },
+            {InputPortId.Variax_Magnetics, "Variax Magnetics" },
+            {InputPortId.Mic, "Mic" },
+            {InputPortId.Return_1, "Return 1" },
+            {InputPortId.Return_2, "Return 2" },
+            {InputPortId.Return_3, "Return 3" },
+            {InputPortId.Return_4, "Return 4" },
+            {InputPortId.Return_1_2, "Return 1/2" },
+            {InputPortId.Return_3_4, "Return 3/4" },
+            {InputPortId.S_PDIF, "S/PDIF" },
+            {InputPortId.USB_3_4, "USB 3/4" },
+            {InputPortId.USB_5_6, "USB 5/6" },
+            {InputPortId.USB_7_8, "USB 7/8" },
+        };
+        private static readonly Dictionary<OutputPortId, string> OutputPort = new()
+        {
+            {OutputPortId.Unknown, "Unknown" },
+            {OutputPortId.Multi, "Multi" },
+            {OutputPortId.Path_2A, "Path 2A" },
+            {OutputPortId.Path_2B, "Path 2B" },
+            {OutputPortId.Path_2AB, "Path 2A+B" },
+            {OutputPortId.QuarterInch, "1/4 inch" },
+            {OutputPortId.XLR, "XLR" },
+            {OutputPortId.Send_1_2, "Send 1/2" },
+            {OutputPortId.Send_3_4, "Send 3/4" },
+            {OutputPortId.Digital, "Digital" },
+            {OutputPortId.USB_1_2, "USB 1/2" },
+            {OutputPortId.USB_3_4, "USB 3/4" },
+            {OutputPortId.USB_5_6, "USB 5/6" },
+        };
+        public static string GetOutputPortName(OutputPortId outputPortNumber) => OutputPort.TryGetValue(outputPortNumber, out string? value) ? value : "Output";
+        public static string GetInputPortName(InputPortId inputPortNumber) => InputPort.TryGetValue(inputPortNumber, out string? value) ? value : "Input";
+        public static Model GetModel(string modelName) =>
                 Catalog.TryGetValue(modelName, out Model? value) ?
                 value :
                 new Model(modelName, ModelId.Unknown, ModelCategory.Unknown, "Unknown", "Unknown");
-        }
         private static readonly Dictionary<string, Model> Catalog = new()
         {
             { "HD2_DM4TubeDrive", new Model("HD2_DM4TubeDrive", ModelId.HD2_DM4TubeDrive, ModelCategory.Distortion, "Tube Drive", "Chandler Tube Driver®") },
