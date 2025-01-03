@@ -748,6 +748,9 @@
     }
     internal static class ModelCatalog
     {
+        public static string GetOutputPortName(OutputPortId outputPortNumber) => OutputPort.TryGetValue(outputPortNumber, out string? value) ? value : "Output";
+        public static string GetInputPortName(InputPortId inputPortNumber) => InputPort.TryGetValue(inputPortNumber, out string? value) ? value : "Input";
+        public static Model GetModel(string modelName) => Catalog.TryGetValue(modelName, out Model? value) ? value : new Model(modelName, ModelId.Unknown, ModelCategory.Unknown, "Unknown", "Unknown");
         private static readonly Dictionary<InputPortId, string> InputPort = new()
         {
             {InputPortId.Unknown, "Unknown" },
@@ -784,12 +787,6 @@
             {OutputPortId.USB_3_4, "USB 3/4" },
             {OutputPortId.USB_5_6, "USB 5/6" },
         };
-        public static string GetOutputPortName(OutputPortId outputPortNumber) => OutputPort.TryGetValue(outputPortNumber, out string? value) ? value : "Output";
-        public static string GetInputPortName(InputPortId inputPortNumber) => InputPort.TryGetValue(inputPortNumber, out string? value) ? value : "Input";
-        public static Model GetModel(string modelName) =>
-                Catalog.TryGetValue(modelName, out Model? value) ?
-                value :
-                new Model(modelName, ModelId.Unknown, ModelCategory.Unknown, "Unknown", "Unknown");
         private static readonly Dictionary<string, Model> Catalog = new()
         {
             { "HD2_DM4TubeDrive", new Model("HD2_DM4TubeDrive", ModelId.HD2_DM4TubeDrive, ModelCategory.Distortion, "Tube Drive", "Chandler Tube Driver®") },
