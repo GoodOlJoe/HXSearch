@@ -237,8 +237,17 @@ namespace HXSearch
                 // The TARGET is a join. Joins belong to the non-split Path of
                 // the corresponding split. That is, they are not one of the
                 // corresponding split's parallel Path, they are on the same
-                // Path as the corresponding split.
-                edge.Target.Split = edge.Source.Split?.Split;
+                // Path as the corresponding split. So we walk back until we
+                // find our closest upstream split, then use that split's parent
+                // split as our split.
+                Node? sp = edge.Source;
+                while (null != sp && sp.Model.Category != ModelCategory.Split)
+                    sp = sp.Split;
+
+                if (null == sp)
+                    edge.Target.Split = null; // the join has no upstream split
+                else
+                    edge.Target.Split = sp.Split; 
             }
             else if (edge.Source.Model.Category == ModelCategory.Split)
             {
@@ -246,10 +255,6 @@ namespace HXSearch
                 // target is on one of it's parent split's parallel paths.
                 edge.Target.Split = edge.Source;
             }
-            //else if (edge.Source.Model.Category == ModelCategory.Merge)
-            //{
-            //    edge.Target.Split = edge.Source.Split?.Split;
-            //}
             else
             {
                 edge.Target.Split = edge.Source.Split;
