@@ -149,7 +149,8 @@ namespace HXSearch.TraversalHandlers
             List<TraversalInfo> B = new(20);
             B.AddRange(AllTIs.Where(ti =>
                     ti.Ancestry.Equals(tiFirst.Ancestry) &&
-                    !ti.Path.Equals(tiFirst.Path)).ToList());
+                    !ti.Path.Equals(tiFirst.Path))
+                    .OrderBy(ti => ti.TraversalId).ToList());
 
 
             B.AddRange(AllTIs.Where(ti =>
@@ -157,17 +158,90 @@ namespace HXSearch.TraversalHandlers
                 !tiFirst.Path.StartsWith(ti.Path) &&
                 !ti.Path.StartsWith(tiFirst.Path)));
 
-            // find my split (the split of tiFirst)
-            // S = empty
-            // J = empty
-            // walk up the splits SP at a time
-                // add everything on SP's path but sequence <= SP to the front of S
-                // add everything on SP's path but sequence > SP to the end of J
-            // connect S, a split, A|B, a join, J
+            TraversalInfo? tiSplit = TiByNode[tiFirst.Node.Split]; // the split preceding this segment
+            List<TraversalInfo> S = new(10);
+            List<TraversalInfo> J = new(10);
+            // walk up the splits
+            while (null != tiSplit)
+            {
 
-            // walk up the joins JN at a time, adding everything 
-            //List<TraversalInfo> S = AllTIs.Where(ti => IsPredecessor(TiByNode[MySplit], ti)).OrderBy(ti => ti.TraversalId).ToList();
+                // add nodes preceding this segment (everything on SP's path but sequence <= SP)
+                S.AddRange(AllTIs.Where(ti =>
+                    ti.Path.Equals(tiSplit.Path) && ti.SegmentSequence <= tiSplit.SegmentSequence)
+                    .OrderBy(ti => ti.TraversalId).ToList());
 
+                // Add nodes trailing this segment (everything on SP's path but sequence > SP)
+                J.AddRange(AllTIs.Where(ti =>
+                    ti.Path.Equals(tiSplit.Path) && ti.SegmentSequence > tiSplit.SegmentSequence)
+                    .OrderBy(ti => ti.TraversalId).ToList());
+
+                if (null != tiSplit.Node.Split)
+                    tiSplit = TiByNode[tiSplit.Node.Split];
+                else
+                    tiSplit = null;
+            }
+
+            //// remove all splits 
+            //for (int i = S.Count - 1; i >= 0; i--)
+            //    if (S[i].Node.Model.Category == ModelCategory.Split)
+            //        S.RemoveAt(i);
+
+            //// remove all joins 
+            //for (int i = J.Count - 1; i >= 0; i--)
+            //    if (J[i].Node.Model.Category == ModelCategory.Merge)
+            //        J.RemoveAt(i);
+
+            _paraChains.Add(ParaChainSignature(S, A, B, J));
+        }
+        private static void StripNodes(List<TraversalInfo> list, List<ModelCategory> categories)
+        {
+            for (int i = list.Count - 1; i >= 0; i--)
+            {
+                if (categories.Contains(list[i].Node.Model.Category))
+                    list.RemoveAt(i);
+            }
+        }
+        private static string ParaChainSignature(
+            List<TraversalInfo> S,
+            List<TraversalInfo> A,
+            List<TraversalInfo> B,
+            List<TraversalInfo> J
+            )
+        {
+            StringBuilder sb = new(50);
+            if (S.Count > 0)
+            {
+                sb.Append(OneSegment(S));
+                sb.Append("(");
+            }
+            if (A.Count > 0)
+            {
+                sb.Append(OneSegment(A));
+                sb.Append("|");
+            }
+            if (B.Count > 0)
+            {
+                sb.Append(OneSegment(B));
+                sb.Append(")");
+            }
+            if (J.Count > 0)
+            {
+                sb.Append(OneSegment(J));
+            }
+            return sb.ToString();
+        }
+        private static string OneSegment(List<TraversalInfo> list)
+        {
+            StripNodes(list, [ModelCategory.Split, ModelCategory.Merge]);
+
+            if (list.Count == 0) return "";
+
+            StringBuilder sb = new(50);
+            foreach (var ti in list)
+            {
+                sb.Append($"{ti.Node.Model.Signature} ");
+            }
+            return sb.ToString();
         }
     }
 }
