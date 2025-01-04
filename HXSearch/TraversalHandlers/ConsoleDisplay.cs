@@ -85,7 +85,8 @@ namespace HXSearch.TraversalHandlers
         }
         internal void SplitHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel)
         {
-            _lines.Add($"{Indent(splitLevel)}(   {n}");
+            //_lines.Add($"{Indent(splitLevel)}(   {n}");
+            _lines.Add($"{Indent(splitLevel)}(");
         }
         internal void EndParallelSegmentHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel)
         {
@@ -93,7 +94,8 @@ namespace HXSearch.TraversalHandlers
         }
         internal void JoinHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel)
         {
-            _lines.Add($"{Indent(splitLevel)})   {n}");
+            //_lines.Add($"{Indent(splitLevel)})   {n}");
+            _lines.Add($"{Indent(splitLevel)})");
         }
         internal void NodeHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel)
         {

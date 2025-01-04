@@ -17,10 +17,10 @@ namespace HXSearch
         public Node? Split;
         public int OutputPort = -1;
         public int Depth = -1;
-        public override string ToString() => $"{SerialNumber} [T {TraversalId}] {Model} [Depth {Depth}] [Output {OutputPort}]";
+        //public override string ToString() => $"{SerialNumber} [T {TraversalId}] {Model} [Depth {Depth}] [Output {OutputPort}]";
         //public override string ToString() => $"{SerialNumber} [T {TraversalId}] {Model} [Split {Split?.SerialNumber}] [Output {OutputPort}]";
         //public override string ToString() => $"{Model} [Split {Split?.SerialNumber}] [Output {OutputPort}]";
-        //public override string ToString() => Model.ToString();
+        public override string ToString() => Model.ToString();
 
         public HashSet<int> Ancestors
         {

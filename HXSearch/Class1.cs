@@ -83,11 +83,11 @@ namespace HXSearch
             string outFQN = Path.Combine([Environment.CurrentDirectory, "..", "..", "..", "..", "out.txt"]);
             if (File.Exists(outFQN)) { File.Delete(outFQN); }
 
-            //foreach (string fqn in
-            //    Directory.GetFiles("E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System", "*.hlx", SearchOption.AllDirectories)
-            //    .Where(s => !s.Contains("New Preset"))
-            //    )
-            foreach (string fqn in inputs)
+            foreach (string fqn in
+                Directory.GetFiles("E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System", "*.hlx", SearchOption.AllDirectories)
+                .Where(s => !s.Contains("New Preset"))
+                )
+            //foreach (string fqn in inputs)
             {
                 Console.WriteLine(fqn);
                 try
@@ -102,13 +102,13 @@ namespace HXSearch
                     // one traversal to assign traversal IDs to each node, which
                     // we use in the parallelism processing
                     TraversalHandlers.SetTraversalId TravSet = new(); TravSet.Subscribe(pre);
-                     pre.FullTraverse();
+                    pre.FullTraverse();
                     TravSet.UnSubscribe(pre);
 
-                    TraversalHandlers.ConsoleDisplay cd = new(showConnections: true); cd.Subscribe(pre);
+                    TraversalHandlers.ConsoleDisplay cd = new(showConnections: false); cd.Subscribe(pre);
                     TraversalHandlers.TrueSignature trueSig = new(); trueSig.Subscribe(pre);
 
-                     pre.FullTraverse();
+                    pre.FullTraverse();
 
                     File.AppendAllLines(outFQN, cd.OutputLines);
                     File.AppendAllText(outFQN, $"True signature: {trueSig.Signature}\n");
