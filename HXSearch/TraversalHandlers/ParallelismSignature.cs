@@ -150,7 +150,7 @@ namespace HXSearch.TraversalHandlers
             B.AddRange(AllTIs.Where(ti =>
                     ti.Ancestry.Equals(tiFirst.Ancestry) &&
                     !ti.Path.Equals(tiFirst.Path))
-                    .OrderBy(ti => ti.TraversalId).ToList());
+                    .OrderBy(ti => ti.TraversalId));
 
 
             B.AddRange(AllTIs.Where(ti =>

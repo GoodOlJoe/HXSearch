@@ -7,6 +7,15 @@ namespace HXSearch
     {
         private readonly List<string> inputs =
         [
+            // complex path
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\Path Puzzle 1.hlx",
+            
+            // complex path, from "Knife Fight" preset
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\KnifeFight Paths.hlx",
+
+            // SABJ with no A
+            "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.80 2024 12 16 with my presets\\Setlist1-FACTORY 1\\Preset050-BIG DUBB.hlx",
+
             // 2 DEEP NEST
             "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.60 2023 04 26 3.60 Factory Presets\\Setlist8-TEMPLATES\\Preset011-4 Tone Switcher.hlx",
                 
@@ -46,9 +55,6 @@ namespace HXSearch
             // nested parallel sections
             "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\2.81 2019 08 12(2)\\Setlist2-FACTORY 2\\Preset083-Unicorn In A Box.hlx",
 
-            // SABJ with no A
-            "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.80 2024 12 16 with my presets\\Setlist1-FACTORY 1\\Preset050-BIG DUBB.hlx",
-
             // SABJ - SABJ but dsp1 SABJ has no S or A modules and no external input. So it will have null S or A on the intermediate lists
             "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.80 2024 12 16 with my presets\\Setlist1-FACTORY 1\\Preset056-WATERS IN HELL.hlx",
 
@@ -71,8 +77,6 @@ namespace HXSearch
             "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.80 2024 12 16 with my presets\\Setlist1-FACTORY 1\\Preset043-Justice Fo Y'all.hlx",
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\New Preset.hlx",
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\x.hlx",
-            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\y.hlx",
-            "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\2.92 2020 11 22 BEFORE UPGRADE 2.9 TO 3.0\\Setlist1-FACTORY 1\\Preset101-Sunbather.hlx"
             ];
         public void Test()
         {

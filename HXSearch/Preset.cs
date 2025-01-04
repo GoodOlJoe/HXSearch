@@ -4,6 +4,7 @@ using QuikGraph;
 using QuikGraph.Algorithms;
 using QuikGraph.Algorithms.Search;
 using System.Reflection.Metadata.Ecma335;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace HXSearch
@@ -122,17 +123,37 @@ namespace HXSearch
                 needToCheckAgain = false;
                 PropagateSplitsAndOutputPorts();
                 List<Node> leafs = [.. gr.Vertices
-                                        .Where(
-                                            n => null != n.Split &&
+                                        .Where( n =>
                                             (n.Model.Category == ModelCategory.Output  || n.Model.Category == ModelCategory.Merge)
                                             && 0 == gr.OutDegree(n))
-                                        .OrderBy(n => n.Split?.SerialNumber)];
+                                        .OrderBy(n => n.Split?.SerialNumber)
+                                        .ThenBy(n => n.Depth)];
+                //List<Node> leafs = [.. gr.Vertices
+                //                        .Where(
+                //                            n => null != n.Split &&
+                //                            (n.Model.Category == ModelCategory.Output  || n.Model.Category == ModelCategory.Merge)
+                //                            && 0 == gr.OutDegree(n))
+                //                        .OrderBy(n => n.Split?.SerialNumber)];
 
                 while (null != leafs && leafs.Count >= 2)
                 {
-                    if (leafs[0].Split?.SerialNumber == leafs[1].Split?.SerialNumber && (leafs[0].Split?.OutputPort == leafs[1].Split?.OutputPort))
+                    //if (leafs[0].Split?.SerialNumber == leafs[1].Split?.SerialNumber && (leafs[0].Split?.OutputPort == leafs[1].Split?.OutputPort))
+                    //if (HaveCommonAncestor(leafs[0], leafs[1]) && (leafs[0].Split?.OutputPort == leafs[1].Split?.OutputPort))
+                    //if (HaveCommonAncestor(leafs[0], leafs[1]) && (leafs[0].OutputPort == leafs[1].OutputPort))
+                    if (leafs[0].OutputPort == leafs[1].OutputPort)
                     {
-                        InsertJoin([leafs[0], leafs[1]]);
+                        if (leafs[0].Depth == leafs[1].Depth)
+                        {
+                            InsertJoin([leafs[0], leafs[1]]);
+                        }
+                        else
+                        {
+                            // need to "deepen" one side by adding a merge before it
+                            if (leafs[0].Depth < leafs[1].Depth)
+                                Deepen(leafs[0], gr);
+                            else
+                                Deepen(leafs[1], gr);
+                        }
                         leafs.RemoveRange(0, 2);
                         needToCheckAgain = true;
                     }
@@ -144,9 +165,41 @@ namespace HXSearch
             } while (needToCheckAgain);
 
         }
+        private static void Deepen(Node n, AdjacencyGraph<Node, Edge<Node>> gr)
+        {
+            // increase by 1 the depth of the given Node. We do this by
+            // enveloping it in a Split, where one side of the split contains
+            // the node and the other side contains nothing
+
+            List<Edge<Node>> originalInEdges = gr.Edges.Where(e => e.Target == n).ToList();
+            List<Edge<Node>> originalOutEdges = gr.Edges.Where(e => e.Source == n).ToList();
+
+            Node s = NodeFactory.Instance.NewNode(new HlxSplit() { model = ModelId.ImpliedSplit.ToString() });
+            Node j = NodeFactory.Instance.NewNode(new HlxJoin() { model = ModelId.ImpliedJoin.ToString() });
+            gr.AddVerticesAndEdge(new Edge<Node>(s, j)); // one side of the split is "empty" -- connects straight to the join..
+            gr.AddVerticesAndEdge(new Edge<Node>(s, n)); // ...the other side connects to the node we're deepening...
+            gr.AddVerticesAndEdge(new Edge<Node>(n, j)); // and then the node connects to the join
+
+            // anything that was directly upstream of n becomes directly upstream of s
+            foreach (Edge<Node> e in originalInEdges)
+            {
+                gr.AddVerticesAndEdge(new Edge<Node>(e.Source, s));
+                gr.RemoveEdge(e);
+            }
+            // anything that was directly downstream of n becomes directly downstream of j
+            foreach (Edge<Node> e in originalOutEdges)
+            {
+                gr.AddVerticesAndEdge(new Edge<Node>(j, e.Target));
+                gr.RemoveEdge(e);
+            }
+        }
+        private static bool HaveCommonAncestor(Node n1, Node n2)
+        {
+            return n1.Ancestors.Intersect(n2.Ancestors).Any();
+        }
         private void InsertSplitAfter(Node[] nodes)
         {
-            // add a solit to the graph, inserting it afer each Node in the
+            // add a split to the graph, inserting it afer each Node in the
             // given array of nodes and those nodes downstream targets.
 
             List<Node> removeNodes = new(nodes.Length - 1);
@@ -179,20 +232,7 @@ namespace HXSearch
             // Add a join to the graph, inserting it between each Node in the
             // given array of nodes and those nodes downstream targets.
 
-            // And when we insert a join we also insert an implied dummy node
-            // after it, so that when we propagate split back pointers there
-            // will be something after the join to represent the end of a split
-            // Path.
-
-            // That will happen when the preset ends with three or more
-            // unterminated parallel paths (see "Unicorn in a Box" preset).
-
-            // In that scenario we have to close the first one, then close the
-            // second one just behind the first one.
-
             Node j = NodeFactory.Instance.NewNode(new HlxJoin() { model = ModelId.ImpliedJoin.ToString() });
-            //Node dummy = NodeFactory.Instance.NewNode(new HlxBlock() { model = ModelId.Dummy.ToString() });
-            //presetGraph.AddVerticesAndEdge(new Edge<Node>(j, dummy));
 
             foreach (Node n in nodes)
             {
@@ -204,7 +244,6 @@ namespace HXSearch
                 presetGraph.AddVerticesAndEdge(new Edge<Node>(n, j)); // J becomes the new downstream target for this node
 
                 // add the original downstream nodes as J's downstream targets
-                //foreach (Edge<Node> e in originalOutEdges) presetGraph.AddVerticesAndEdge(new Edge<Node>(dummy, e.Target));
                 foreach (Edge<Node> e in originalOutEdges) presetGraph.AddVerticesAndEdge(new Edge<Node>(j, e.Target));
             }
         }
@@ -213,9 +252,25 @@ namespace HXSearch
             var dfs = new DepthFirstSearchAlgorithm<Node, Edge<Node>>(presetGraph);
             dfs.ExamineEdge += Dfs_BackConnectSplits;
             dfs.ExamineEdge += Dfs_PropagateOutputPort;
+            dfs.ExamineEdge += Dfs_CalculateDepth;
             dfs.Compute();
             dfs.ExamineEdge -= Dfs_BackConnectSplits;
             dfs.ExamineEdge -= Dfs_PropagateOutputPort;
+            dfs.ExamineEdge -= Dfs_CalculateDepth;
+        }
+        private void Dfs_CalculateDepth(Edge<Node> edge)
+        {
+            if (-1 == edge.Source.Depth)
+                edge.Source.Depth = 0;
+
+            if (edge.Source.Model.Category == ModelCategory.Split)
+                edge.Target.Depth = edge.Source.Depth + 1;
+
+            else if (edge.Target.Model.Category == ModelCategory.Merge)
+                edge.Target.Depth = edge.Source.Depth - 1;
+
+            else
+                edge.Target.Depth = edge.Source.Depth;
         }
         private void Dfs_PropagateOutputPort(Edge<Node> edge)
         {
@@ -247,7 +302,7 @@ namespace HXSearch
                 if (null == sp)
                     edge.Target.Split = null; // the join has no upstream split
                 else
-                    edge.Target.Split = sp.Split; 
+                    edge.Target.Split = sp.Split;
             }
             else if (edge.Source.Model.Category == ModelCategory.Split)
             {
@@ -262,6 +317,8 @@ namespace HXSearch
         }
         private void ImportStandalonePaths(AdjacencyGraph<Node, Edge<Node>> targetGraph, AdjacencyGraph<Node, Edge<Node>> sourceGraph)
         {
+            copiedNodesMap.Clear(); // added 1
+
             foreach (Node n in sourceGraph.Roots())
             {
                 if (n.Model.Category == ModelCategory.Input && n.Block is HlxInput inputBlock && inputBlock.input != 0)
@@ -337,7 +394,17 @@ namespace HXSearch
                 copiedNodesMap.Add(edge.Source.SerialNumber, NodeFactory.Instance.NewNode(edge.Source.Block));
             if (!copiedNodesMap.ContainsKey(edge.Target.SerialNumber))
                 copiedNodesMap.Add(edge.Target.SerialNumber, NodeFactory.Instance.NewNode(edge.Target.Block));
-            presetGraph.AddVerticesAndEdge(new Edge<Node>(copiedNodesMap[edge.Source.SerialNumber], copiedNodesMap[edge.Target.SerialNumber]));
+
+            //Edge<Node> e = new Edge<Node>(copiedNodesMap[edge.Source.SerialNumber], copiedNodesMap[edge.Target.SerialNumber]);
+
+            if (0 == presetGraph.Edges
+                .Where(e =>
+                    e.Source.SerialNumber == copiedNodesMap[edge.Source.SerialNumber].SerialNumber &&
+                    e.Target.SerialNumber == copiedNodesMap[edge.Target.SerialNumber].SerialNumber)
+                .Count())
+            {
+                presetGraph.AddVerticesAndEdge(new Edge<Node>(copiedNodesMap[edge.Source.SerialNumber], copiedNodesMap[edge.Target.SerialNumber]));
+            }
         }
         private static Node? FirstTarget(AdjacencyGraph<Node, Edge<Node>> gr, Node? n) => null == n ? null : gr.OutEdges(n).FirstOrDefault()?.Target;
         private static void PushFirstTarget(Stack<Node?> stack, AdjacencyGraph<Node, Edge<Node>> gr, Node? n)
