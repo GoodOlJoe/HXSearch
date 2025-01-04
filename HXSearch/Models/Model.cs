@@ -14,6 +14,7 @@
                     $"{Category} \"{Name}\"" :
                     $"{Category} \"{DisplayName}\"";
         }
+        public string ToString(string useName) => $"{Category} \"{useName}\"";
         //public string Signature() => $"c{(int)Category}:m{(int)Id}";
         public string Signature => $"c{Category} m{Id} ";
     }

@@ -20,7 +20,16 @@ namespace HXSearch
         //public override string ToString() => $"{SerialNumber} [T {TraversalId}] {Model} [Depth {Depth}] [Output {OutputPort}]";
         //public override string ToString() => $"{SerialNumber} [T {TraversalId}] {Model} [Split {Split?.SerialNumber}] [Output {OutputPort}]";
         //public override string ToString() => $"{Model} [Split {Split?.SerialNumber}] [Output {OutputPort}]";
-        public override string ToString() => Model.ToString();
+        //public override string ToString() => Model.ToString();
+        public override string ToString()
+        {
+            return Model.Category switch
+            {
+                ModelCategory.Input => Model.ToString(ModelCatalog.GetInputPortName((InputPortId)((HlxInput)Block).input)),
+                ModelCategory.Output => Model.ToString(ModelCatalog.GetOutputPortName((OutputPortId)((HlxOutput)Block).output)),
+                _ => Model.ToString()
+            };
+        }
 
         public HashSet<int> Ancestors
         {

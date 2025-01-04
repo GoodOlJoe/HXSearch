@@ -760,7 +760,7 @@
     }
     public enum InputPortId
     {
-        Unknown = 00,
+        Internal = 00,
         Multi = 01,
         Guitar = 02,
         Aux = 03,
@@ -785,7 +785,7 @@
         public static Model GetModel(string modelName) => Catalog.TryGetValue(modelName, out Model? value) ? value : new Model(modelName, ModelId.Unknown, ModelCategory.Unknown, "Unknown", "Unknown");
         private static readonly Dictionary<InputPortId, string> InputPort = new()
         {
-            {InputPortId.Unknown, "Unknown" },
+            {InputPortId.Internal, "Internal" },
             {InputPortId.Multi, "Multi" },
             {InputPortId.Guitar, "Guitar" },
             {InputPortId.Aux, "Aux" },

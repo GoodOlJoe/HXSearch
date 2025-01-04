@@ -105,7 +105,7 @@ namespace HXSearch
                     pre.FullTraverse();
                     TravSet.UnSubscribe(pre);
 
-                    TraversalHandlers.ConsoleDisplay cd = new(showConnections: false); cd.Subscribe(pre);
+                    TraversalHandlers.ConsoleDisplay cd = new(showConnections: true); cd.Subscribe(pre);
                     TraversalHandlers.TrueSignature trueSig = new(); trueSig.Subscribe(pre);
 
                     pre.FullTraverse();
