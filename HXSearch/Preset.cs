@@ -77,6 +77,24 @@ namespace HXSearch
                 // them as a single input which splits into multiple paths.
                 HandleParallelInputs(presetGraph);
 
+                // For certain combinations of topologies and routings we can
+                // end up with an extraneous Join in the graph after dsp0
+                // outputs are connected to dsp1 inputs. For example, if dsp1
+                // has external inputs and an ABJ routing, and a dsp0 output
+                // routes to either dsp1-A or -B (but not both) then the join in
+                // dsp1 will have been duplicated into the overall graph, but
+                // without a corresponding preceding split. Hard to picture
+                // without a diagram, but basically that join in dsp1 is
+                // meaningful only within the signal path originating from the
+                // dsp1's external inputs. It's not meaningful when considering
+                // dsp1 A or B in its additional role as a continuation from a
+                // dsp0 output. But rather than trying to detect it during the
+                // ConnectOutputToInput process, where you'd have to continually
+                // repropagate the splits backpointers, we just let is get
+                // included and then propagate splits once, and remove any joins
+                // that don't have a corresponding split.
+                RemoveExtraneousJoins(presetGraph);
+
                 // If we have signal paths existing to the same output port,
                 // shows them as merging Must run AFTER HandleParallelInputs or
                 // else we won't recognize "implied" parallelism that originates
@@ -97,10 +115,21 @@ namespace HXSearch
                                             n => n.Model.Category == ModelCategory.Input &&
                                             n.Block is HlxInput inputBlock &&
                                             0 != inputBlock.input )
-                                        .OrderBy(n => ((HlxInput)n.Block).input)];
+                                        .OrderBy(n => n.Block.DspNum)
+                                        .ThenBy(n => ((HlxInput)n.Block).input)];
                 while (rootInputs.Count >= 2)
                 {
-                    if (((HlxInput)rootInputs[0].Block).input == ((HlxInput)rootInputs[1].Block).input)
+                    if (rootInputs.Count > 2 && rootInputs[0].Block.DspNum != rootInputs[1].Block.DspNum)
+                    {
+                        // there are at least 3 inputs to merge, and the first
+                        // two are from different DSPs. When we have inputs to
+                        // handle from different DSPs we want to handle any on
+                        // the same DSP first. So drop this first one for now,
+                        // letting the next two (if they are from the same DSP)
+                        // get handled together first.
+                        rootInputs.RemoveAt(0);
+                    }
+                    else if (((HlxInput)rootInputs[0].Block).input == ((HlxInput)rootInputs[1].Block).input)
                     {
                         InsertSplitAfter([rootInputs[0], rootInputs[1]]);
                         rootInputs.RemoveRange(0, 2);
@@ -121,19 +150,13 @@ namespace HXSearch
             do
             {
                 needToCheckAgain = false;
-                PropagateSplitsAndOutputPorts();
+                PropagateSplitsAndOutputPorts(gr);
                 List<Node> leafs = [.. gr.Vertices
                                         .Where( n =>
                                             (n.Model.Category == ModelCategory.Output  || n.Model.Category == ModelCategory.Merge)
                                             && 0 == gr.OutDegree(n))
                                         .OrderBy(n => n.Split?.SerialNumber)
                                         .ThenBy(n => n.Depth)];
-                //List<Node> leafs = [.. gr.Vertices
-                //                        .Where(
-                //                            n => null != n.Split &&
-                //                            (n.Model.Category == ModelCategory.Output  || n.Model.Category == ModelCategory.Merge)
-                //                            && 0 == gr.OutDegree(n))
-                //                        .OrderBy(n => n.Split?.SerialNumber)];
 
                 while (null != leafs && leafs.Count >= 2)
                 {
@@ -154,33 +177,33 @@ namespace HXSearch
             } while (needToCheckAgain);
 
         }
-        private static void Deepen(Node n, AdjacencyGraph<Node, Edge<Node>> gr)
-        {
-            // increase by 1 the depth of the given Node. We do this by putting
-            // an open (unjoined) split ahead of it
+        //private static void Deepen(Node n, AdjacencyGraph<Node, Edge<Node>> gr)
+        //{
+        //    // increase by 1 the depth of the given Node. We do this by putting
+        //    // an open (unjoined) split ahead of it
 
-            List<Edge<Node>> originalInEdges = gr.Edges.Where(e => e.Target == n).ToList();
-            //List<Edge<Node>> originalOutEdges = gr.Edges.Where(e => e.Source == n).ToList();
+        //    List<Edge<Node>> originalInEdges = gr.Edges.Where(e => e.Target == n).ToList();
+        //    //List<Edge<Node>> originalOutEdges = gr.Edges.Where(eIn => eIn.Source == n).ToList();
 
-            Node s = NodeFactory.Instance.NewNode(new HlxSplit() { model = ModelId.ImpliedSplit.ToString() });
-            //Node j = NodeFactory.Instance.NewNode(new HlxJoin() { model = ModelId.ImpliedJoin.ToString() });
-            //gr.AddVerticesAndEdge(new Edge<Node>(s, j)); // one side of the split is "empty" -- connects straight to the join..
-            gr.AddVerticesAndEdge(new Edge<Node>(s, n)); // ...the other side connects to the node we're deepening...
-            //gr.AddVerticesAndEdge(new Edge<Node>(n, j)); // and then the node connects to the join
+        //    Node s = NodeFactory.Instance.NewNode(new HlxSplit() { model = ModelId.ImpliedSplit.ToString() });
+        //    //Node j = NodeFactory.Instance.NewNode(new HlxJoin() { model = ModelId.ImpliedJoin.ToString() });
+        //    //gr.AddVerticesAndEdge(new Edge<Node>(s, j)); // one side of the split is "empty" -- connects straight to the join..
+        //    gr.AddVerticesAndEdge(new Edge<Node>(s, n)); // ...the other side connects to the node we're deepening...
+        //    //gr.AddVerticesAndEdge(new Edge<Node>(n, j)); // and then the node connects to the join
 
-            // anything that was directly upstream of n becomes directly upstream of s
-            foreach (Edge<Node> e in originalInEdges)
-            {
-                gr.AddVerticesAndEdge(new Edge<Node>(e.Source, s));
-                gr.RemoveEdge(e);
-            }
-            // anything that was directly downstream of n becomes directly downstream of j
-            //foreach (Edge<Node> e in originalOutEdges)
-            //{
-            //    gr.AddVerticesAndEdge(new Edge<Node>(j, e.Target));
-            //    gr.RemoveEdge(e);
-            //}
-        }
+        //    // anything that was directly upstream of n becomes directly upstream of s
+        //    foreach (Edge<Node> e in originalInEdges)
+        //    {
+        //        gr.AddVerticesAndEdge(new Edge<Node>(e.Source, s));
+        //        gr.RemoveEdge(e);
+        //    }
+        //    // anything that was directly downstream of n becomes directly downstream of j
+        //    //foreach (Edge<Node> eIn in originalOutEdges)
+        //    //{
+        //    //    gr.AddVerticesAndEdge(new Edge<Node>(j, eIn.Target));
+        //    //    gr.RemoveEdge(eIn);
+        //    //}
+        //}
         private static bool HaveCommonAncestor(Node n1, Node n2)
         {
             return n1.Ancestors.Intersect(n2.Ancestors).Any();
@@ -235,9 +258,9 @@ namespace HXSearch
                 foreach (Edge<Node> e in originalOutEdges) presetGraph.AddVerticesAndEdge(new Edge<Node>(j, e.Target));
             }
         }
-        private void PropagateSplitsAndOutputPorts()
+        private void PropagateSplitsAndOutputPorts(AdjacencyGraph<Node, Edge<Node>> gr)
         {
-            var dfs = new DepthFirstSearchAlgorithm<Node, Edge<Node>>(presetGraph);
+            var dfs = new DepthFirstSearchAlgorithm<Node, Edge<Node>>(gr);
             dfs.ExamineEdge += Dfs_BackConnectSplits;
             dfs.ExamineEdge += Dfs_PropagateOutputPort;
             dfs.ExamineEdge += Dfs_CalculateDepth;
@@ -325,6 +348,7 @@ namespace HXSearch
 
             foreach (Node audioOutNode in audioOuts)
             {
+                copiedNodesMap.Clear();
                 HlxOutput output = (HlxOutput)audioOutNode.Block;
                 switch (output.output)
                 {
@@ -349,14 +373,34 @@ namespace HXSearch
                     default:
                         break;
                 }
-
             }
+        }
+        private void RemoveExtraneousJoins(AdjacencyGraph<Node, Edge<Node>> gr)
+        {
+            PropagateSplitsAndOutputPorts(gr);
+            HashSet<Node> extraJoins = new(2);
+
+            // list of upstream edges to all extra joins...the edge's Source
+            // nodes are the extra joins' upstream nodes, which must be
+            // reconnected to the extra joins' downstream nodes
+            List<Edge<Node>> extraJoinInEdges = [.. gr.Edges.Where(e => e.Target.Model.Category == ModelCategory.Merge && null == e.Target.Split)];
+
+            foreach (Edge<Node> eIn in extraJoinInEdges)
+            {
+                // we'll delete any extra joins (and their connected edges)
+                // after bypassing them
+                extraJoins.Add(eIn.Target);
+
+                foreach (Edge<Node> eOut in gr.OutEdges(eIn.Target))
+                    gr.AddVerticesAndEdge(new Edge<Node>(eIn.Source, eOut.Target)); // bypass the join
+            }
+
+            foreach (Node n in extraJoins)
+                gr.RemoveVertex(n);
         }
         private void ConnectOutputToInput(AdjacencyGraph<Node, Edge<Node>> audioOutGraph, Node audioOutNode, AdjacencyGraph<Node, Edge<Node>> audioInGraph, string inputName)
         {
-            copiedNodesMap.Clear();
-
-            foreach (Node toInputNode in audioInGraph.Vertices.Where(n => n.Model.Category == Models.ModelCategory.Input && n.Model.Name.Equals(inputName)))
+            foreach (Node toInputNode in audioInGraph.Vertices.Where(n => n.Model.Category == ModelCategory.Input && n.Model.Name.Equals(inputName)))
             {
                 HlxInput b = (HlxInput)toInputNode.Block;
                 // Always create new Nodes wrapping the same blocks when
@@ -378,18 +422,28 @@ namespace HXSearch
         }
         private void Dfs_ProcessEdge(Edge<Node> edge)
         {
+            //Node target = edge.Target;
+
             if (!copiedNodesMap.ContainsKey(edge.Source.SerialNumber))
                 copiedNodesMap.Add(edge.Source.SerialNumber, NodeFactory.Instance.NewNode(edge.Source.Block));
+
+            //if (edge.Target.Model.Category == ModelCategory.Merge && copiedNodesMap.TryGetValue(edge.Target.SerialNumber, out Node? value))
+            //{
+            //    // special case for Joins: 
+            //    target = value;
+            //}
             if (!copiedNodesMap.ContainsKey(edge.Target.SerialNumber))
+            {
                 copiedNodesMap.Add(edge.Target.SerialNumber, NodeFactory.Instance.NewNode(edge.Target.Block));
+                //target = copiedNodesMap[edge.Target.SerialNumber];
+            }
 
-            //Edge<Node> e = new Edge<Node>(copiedNodesMap[edge.Source.SerialNumber], copiedNodesMap[edge.Target.SerialNumber]);
+            //Edge<Node> eIn = new Edge<Node>(copiedNodesMap[edge.Source.SerialNumber], copiedNodesMap[edge.Target.SerialNumber]);
 
-            if (0 == presetGraph.Edges
+            if (!presetGraph.Edges
                 .Where(e =>
                     e.Source.SerialNumber == copiedNodesMap[edge.Source.SerialNumber].SerialNumber &&
-                    e.Target.SerialNumber == copiedNodesMap[edge.Target.SerialNumber].SerialNumber)
-                .Count())
+                    e.Target.SerialNumber == copiedNodesMap[edge.Target.SerialNumber].SerialNumber).Any())
             {
                 presetGraph.AddVerticesAndEdge(new Edge<Node>(copiedNodesMap[edge.Source.SerialNumber], copiedNodesMap[edge.Target.SerialNumber]));
             }

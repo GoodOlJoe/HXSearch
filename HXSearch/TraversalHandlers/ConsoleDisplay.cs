@@ -80,7 +80,7 @@ namespace HXSearch.TraversalHandlers
             if (null != root && null != root.Block && root.Block is HlxInput inp)
             {
                 _lines.Add("");
-                _lines.Add($"=== dsp{inp.dspNum} input{inp.inputNum} ===============");
+                _lines.Add($"=== dsp{inp.DspNum} input{inp.inputNum} ===============");
             }
         }
         internal void SplitHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel)

@@ -20,11 +20,12 @@ namespace HXSearch
 
             Topology = topology;
             DspNum = dspNum;
+            foreach (HlxBlock b in hlxDsp.Blocks) b.DspNum = dspNum;
             DspGraph = BuildDspGraphByTopology(topology, hlxDsp);
-            hlxDsp.Inputs[0].dspNum = dspNum;
-            hlxDsp.Inputs[1].dspNum = dspNum;
-            hlxDsp.Outputs[0].dspNum = dspNum;
-            hlxDsp.Outputs[1].dspNum = dspNum;
+            hlxDsp.Inputs[0].DspNum = dspNum;
+            hlxDsp.Inputs[1].DspNum = dspNum;
+            hlxDsp.Outputs[0].DspNum = dspNum;
+            hlxDsp.Outputs[1].DspNum = dspNum;
         }
         private static AdjacencyGraph<Node, Edge<Node>> BuildDspGraphByTopology(string topology, HlxDsp hlxDsp)
         {
@@ -107,7 +108,7 @@ namespace HXSearch
                             // special case for Amp+Cab -- insert the amp and a new block representing the cab
                             graph.AddVerticesAndEdge(new Edge<Node>(source, target));
                             Node cab = GetImpliedCabNode(blk, hlxDsp);
-                            graph.AddVerticesAndEdge(new Edge<Node>(target,cab));
+                            graph.AddVerticesAndEdge(new Edge<Node>(target, cab));
                             target = cab;
                         }
                         else if (target.Model.Category == ModelCategory.DualCab)
@@ -184,7 +185,7 @@ namespace HXSearch
         //    {
         //        HlxInput? inp = rootInput.Block as HlxInput;
         //        lines.Add("");
-        //        lines.Add($"=== dsp{inp?.dspNum} input{inp?.inputNum} ===============");
+        //        lines.Add($"=== dsp{inp?.DspNum} input{inp?.inputNum} ===============");
         //        lines.Add("");
 
         //        Node? n = rootInput;
