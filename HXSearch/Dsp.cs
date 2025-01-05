@@ -1,9 +1,6 @@
 ﻿using HXSearch.Hlx;
 using QuikGraph;
-using QuikGraph.Collections;
 using QuikGraph.Algorithms;
-using QuikGraph.Algorithms.Search;
-using System.Diagnostics.Tracing;
 using HXSearch.Models;
 
 namespace HXSearch
@@ -16,7 +13,13 @@ namespace HXSearch
 
         public Dsp(int dspNum, string topology, HlxDsp hlxDsp)
         {
-            if (null == hlxDsp) return;
+            if (null == hlxDsp)
+            {
+                // satisfy non-nullability and return
+                Topology = "";
+                DspGraph = new();
+                return;
+            }
 
             Topology = topology;
             DspNum = dspNum;
@@ -162,85 +165,5 @@ namespace HXSearch
         }
         private const int indentSize = 4;
         private const string indentStock = "                                                                                                                        ";
-        private static Node? GetNext(List<Edge<Node>>? next, int index) => (null != next && index < next.Count) ? next[index].Target : null;
-        private static string Indent(int level) { return indentStock[0..(level * indentSize)]; }
-        //public List<string> DisplayAll(bool showConnections)
-        //{
-        //    int splitDepth = 0;
-        //    int lvl = 1;
-
-        //    List<string> lines = new(DspGraph.EdgeCount * 2)
-        //    {
-        //        "",
-        //        "",
-        //        $"DSP:      {DspNum}",
-        //        $"Topology: {Topology}"
-        //    };
-
-        //    // If the graph is correctly constructed and the preset is as
-        //    // expected, the only roots will be non-zero inputs, which are true
-        //    // external inputs. But we defensively filter the roots with these
-        //    // conditions anyway
-        //    foreach (Node rootInput in DspGraph.Roots().Where(n => n.Block is HlxInput inp && 0 != inp.input))
-        //    {
-        //        HlxInput? inp = rootInput.Block as HlxInput;
-        //        lines.Add("");
-        //        lines.Add($"=== dsp{inp?.DspNum} input{inp?.inputNum} ===============");
-        //        lines.Add("");
-
-        //        Node? n = rootInput;
-
-        //        Node? pathBHead = null;
-        //        while (null != n)
-        //        {
-        //            List<Edge<Node>> next = [.. DspGraph.OutEdges(n).ToList()];
-
-        //            if (n.Block is HlxSplit split)
-        //            {
-        //                //lines.Add($"{Indent(lvl)}parallel ( {n}");
-        //                lines.Add($"{Indent(lvl)}parallel (");
-        //                pathBHead = GetNext(next, 1);
-        //                lvl++;
-        //                splitDepth++;
-        //                n = GetNext(next, 0);
-        //            }
-        //            else if (n.Block is HlxJoin joinFirstTime && null != pathBHead) // we're hitting the join the first time
-        //            {
-        //                //lines.Add($"{Indent(lvl)}--- and --- {n}");
-        //                lines.Add($"{Indent(lvl)}--- and ---");
-        //                n = pathBHead;
-        //                pathBHead = null;
-        //            }
-        //            else if (n.Block is HlxJoin joinSecondTime) // no Path to backtrack to, we're hitting the join after traversing our split's second Path
-        //            {
-        //                if (splitDepth > 0)
-        //                {
-        //                    // we're exiting a parallel segment
-        //                    lvl--;
-        //                    lines.Add($"{Indent(lvl)}) {n}");
-        //                    splitDepth--;
-        //                }
-        //                //else we're not in a split, it's just a join from
-        //                //another Path coming. It doesn't affect the signal Path
-        //                //we're currently on...nothing to display, just proceed
-
-        //                n = GetNext(next, 0);
-        //            }
-        //            else if (n.Model.Category == ModelCategory.Dummy)
-        //            {
-        //                n = GetNext(next, 0);
-        //            }
-        //            else
-        //            {
-        //                if (showConnections || n.Block is not HlxConnector)
-        //                    lines.Add($"{Indent(lvl)}{n}");
-        //                n = GetNext(next, 0);
-        //            }
-        //        }
-
-        //    }
-        //    lines.Add("");
-        //    return lines;
-        //}
     }
 }

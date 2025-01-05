@@ -7,8 +7,7 @@ namespace HXSearch
     {
         private readonly List<string> ioTests =
         [
-            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 31c.hlx",
-            "!! STOP !!",
+            //"!! STOP !!",
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 11.hlx",
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 12.hlx",
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 13.hlx",
@@ -19,6 +18,7 @@ namespace HXSearch
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 24.hlx",
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 31a.hlx",
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 31b.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 31c.hlx",
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 32a.hlx",
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 32b.hlx",
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 33.hlx",
@@ -164,7 +164,7 @@ namespace HXSearch
                 }
                 catch (Exception ex)
                 {
-                    File.AppendAllLines(outFQN, [$"*** {ex.Message}"]);
+                    File.AppendAllLines(outFQN, [$"*** {ex.Message}\n{ex.StackTrace}"]);
                 }
             }
         }

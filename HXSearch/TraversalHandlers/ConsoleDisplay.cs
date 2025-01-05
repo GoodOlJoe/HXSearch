@@ -14,7 +14,7 @@ namespace HXSearch.TraversalHandlers
         private static string Indent(int level) => indentStock[0..(level * indentSize)];
         private readonly bool ShowConnections = showConnections;
         public List<string> OutputLines => _lines;
-        private readonly Regex FqnRegex = new Regex(
+        private readonly Regex FqnRegex = new(
           @"(?<setlist_ordinal_name>Setlist\d)\-(?<setlist_name>[^\\\/]+)[\\\/]Preset(?<preset_number>\d+)\-(?<preset_name>.+)\.hlx"
         );
 
@@ -40,7 +40,7 @@ namespace HXSearch.TraversalHandlers
             //preset.OnPostRoot -= PostRootHandler;
             //preset.OnPostTraversal -= PostTraversalHandler;
         }
-        private string? BankLocation(string ordinalLocation)
+        private static string? BankLocation(string ordinalLocation)
         {
             if (int.TryParse(ordinalLocation, out var ordinal))
             {
@@ -49,7 +49,6 @@ namespace HXSearch.TraversalHandlers
                 return $"{bank + 1}{(char)(slot + 65)}"; // avoid an array allocation{ new char[4] { 'A', 'B', 'C', 'D' }[slot]}";
             }
             else return null;
-
         }
         private string? LocationHint(string fqn)
         {

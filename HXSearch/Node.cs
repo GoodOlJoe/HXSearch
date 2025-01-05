@@ -27,20 +27,5 @@ namespace HXSearch
             ModelCategory.Output => Model.ToString(ModelCatalog.GetOutputPortName((OutputPortId)((HlxOutput)Block).output)),
             _ => Model.ToString()
         };
-
-        public HashSet<int> Ancestors
-        {
-            get
-            {
-                HashSet<int> anc = new(5);
-                Node? sp = Split;
-                while (null != sp)
-                {
-                    anc.Add(sp.SerialNumber);
-                    sp = sp.Split;
-                }
-                return anc;
-            }
-        }
     }
 }
