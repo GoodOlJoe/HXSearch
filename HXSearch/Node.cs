@@ -17,11 +17,11 @@ namespace HXSearch
         public Node? Split;
         public int OutputPort = -1;
         public int Depth = -1;
-        //public override string ToString() => $"{SerialNumber} [T {TraversalId}] {Model} [Depth {Depth}] [Output {OutputPort}]";
-        //public override string ToString() => $"{SerialNumber} [T {TraversalId}] {Model} [Split {Split?.SerialNumber}] [Output {OutputPort}]";
-        //public override string ToString() => $"{Model} [Split {Split?.SerialNumber}] [Output {OutputPort}]";
-        //public override string ToString() => Model.ToString();
-        public override string ToString()
+        //public override string ToString() => $"{SerialNumber} [T {TraversalId}] {ModelString()} [Depth {Depth}] [Output {OutputPort}]";
+        public override string ToString() => $"{SerialNumber} [T {TraversalId}] {ModelString()} [Split {Split?.SerialNumber}] [Output {OutputPort}]";
+        //public override string ToString() => $"{ModelString()} [Split {Split?.SerialNumber}] [Output {OutputPort}]";
+        //public override string ToString() => ModelString();
+        public  string ModelString()
         {
             return Model.Category switch
             {

@@ -140,20 +140,9 @@ namespace HXSearch
                     //if (leafs[0].Split?.SerialNumber == leafs[1].Split?.SerialNumber && (leafs[0].Split?.OutputPort == leafs[1].Split?.OutputPort))
                     //if (HaveCommonAncestor(leafs[0], leafs[1]) && (leafs[0].Split?.OutputPort == leafs[1].Split?.OutputPort))
                     //if (HaveCommonAncestor(leafs[0], leafs[1]) && (leafs[0].OutputPort == leafs[1].OutputPort))
-                    if (leafs[0].OutputPort == leafs[1].OutputPort)
+                    if (leafs[0].OutputPort == leafs[1].OutputPort && leafs[0].Depth == leafs[1].Depth)
                     {
-                        if (leafs[0].Depth == leafs[1].Depth)
-                        {
-                            InsertJoin([leafs[0], leafs[1]]);
-                        }
-                        else
-                        {
-                            // need to "deepen" one side by adding a merge before it
-                            if (leafs[0].Depth < leafs[1].Depth)
-                                Deepen(leafs[0], gr);
-                            else
-                                Deepen(leafs[1], gr);
-                        }
+                        InsertJoin([leafs[0], leafs[1]]);
                         leafs.RemoveRange(0, 2);
                         needToCheckAgain = true;
                     }

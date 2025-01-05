@@ -5,13 +5,36 @@ namespace HXSearch
 {
     public class Class1
     {
+        private readonly List<string> ioTests =
+        [
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 41.hlx",
+            "!! STOP !!",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 11.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 12.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 13.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 21.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 22a.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 22b.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 23.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 24.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 31a.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 31b.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 31c.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 32a.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 32b.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 33.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 34.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 42.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 43.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 44.hlx",
+        ];
         private readonly List<string> inputs =
         [
-            // complex path
-            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\Path Puzzle 1.hlx",
-            
             // complex path, from "Knife Fight" preset
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\KnifeFight Paths.hlx",
+            
+            // complex path
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\Path Puzzle 1.hlx",
 
             // SABJ with no A
             "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.80 2024 12 16 with my presets\\Setlist1-FACTORY 1\\Preset050-BIG DUBB.hlx",
@@ -83,12 +106,15 @@ namespace HXSearch
             string outFQN = Path.Combine([Environment.CurrentDirectory, "..", "..", "..", "..", "out.txt"]);
             if (File.Exists(outFQN)) { File.Delete(outFQN); }
 
-            foreach (string fqn in
-                Directory.GetFiles("E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System", "*.hlx", SearchOption.AllDirectories)
-                .Where(s => !s.Contains("New Preset"))
-                )
+            //foreach (string fqn in
+            //    Directory.GetFiles("E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System", "*.hlx", SearchOption.AllDirectories)
+            //    .Where(s => !s.Contains("New Preset"))
+            //    )
             //foreach (string fqn in inputs)
+            foreach (string fqn in ioTests)
             {
+                if (fqn.Equals("!! STOP !!")) return;
+
                 Console.WriteLine(fqn);
                 try
                 {
