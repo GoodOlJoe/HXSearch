@@ -167,18 +167,17 @@ namespace HXSearch
         }
         private static void Deepen(Node n, AdjacencyGraph<Node, Edge<Node>> gr)
         {
-            // increase by 1 the depth of the given Node. We do this by
-            // enveloping it in a Split, where one side of the split contains
-            // the node and the other side contains nothing
+            // increase by 1 the depth of the given Node. We do this by putting
+            // an open (unjoined) split ahead of it
 
             List<Edge<Node>> originalInEdges = gr.Edges.Where(e => e.Target == n).ToList();
-            List<Edge<Node>> originalOutEdges = gr.Edges.Where(e => e.Source == n).ToList();
+            //List<Edge<Node>> originalOutEdges = gr.Edges.Where(e => e.Source == n).ToList();
 
             Node s = NodeFactory.Instance.NewNode(new HlxSplit() { model = ModelId.ImpliedSplit.ToString() });
-            Node j = NodeFactory.Instance.NewNode(new HlxJoin() { model = ModelId.ImpliedJoin.ToString() });
-            gr.AddVerticesAndEdge(new Edge<Node>(s, j)); // one side of the split is "empty" -- connects straight to the join..
+            //Node j = NodeFactory.Instance.NewNode(new HlxJoin() { model = ModelId.ImpliedJoin.ToString() });
+            //gr.AddVerticesAndEdge(new Edge<Node>(s, j)); // one side of the split is "empty" -- connects straight to the join..
             gr.AddVerticesAndEdge(new Edge<Node>(s, n)); // ...the other side connects to the node we're deepening...
-            gr.AddVerticesAndEdge(new Edge<Node>(n, j)); // and then the node connects to the join
+            //gr.AddVerticesAndEdge(new Edge<Node>(n, j)); // and then the node connects to the join
 
             // anything that was directly upstream of n becomes directly upstream of s
             foreach (Edge<Node> e in originalInEdges)
@@ -187,11 +186,11 @@ namespace HXSearch
                 gr.RemoveEdge(e);
             }
             // anything that was directly downstream of n becomes directly downstream of j
-            foreach (Edge<Node> e in originalOutEdges)
-            {
-                gr.AddVerticesAndEdge(new Edge<Node>(j, e.Target));
-                gr.RemoveEdge(e);
-            }
+            //foreach (Edge<Node> e in originalOutEdges)
+            //{
+            //    gr.AddVerticesAndEdge(new Edge<Node>(j, e.Target));
+            //    gr.RemoveEdge(e);
+            //}
         }
         private static bool HaveCommonAncestor(Node n1, Node n2)
         {
