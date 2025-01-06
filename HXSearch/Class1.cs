@@ -30,6 +30,7 @@ namespace HXSearch
         ];
         private readonly List<string> inputs =
         [
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 13.hlx",
             "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\2.81 2019 10 19(2)\\Setlist3-Songs and Amps\\Preset042-No Longer Slaves.hlx",
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 31c.hlx",
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 41.hlx",

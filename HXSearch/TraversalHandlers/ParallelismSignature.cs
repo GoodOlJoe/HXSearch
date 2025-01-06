@@ -149,7 +149,7 @@ namespace HXSearch.TraversalHandlers
                     // signature for this split. That is, we don't need to do
                     // splits that have only other splits or ins/outs on either
                     // of their immediate segments.
-                    BuildOneParaChain(TiByNode[thisSplit]);
+                    BuildParaChainsForOneSplit(TiByNode[thisSplit]);
                 }
             }
         }
@@ -174,10 +174,125 @@ namespace HXSearch.TraversalHandlers
             }
             return isPredecessor;
         }
-        private void BuildOneParaChain(TraversalInfo tiSplit)
+        private void BuildParaChainsForOneSplit(TraversalInfo tiSplit)
         {
+            List<ModelCategory> excludeCategories = [ModelCategory.Split, ModelCategory.Merge];
 
+            string firstS = "";
+            string firstA = "";
+            string firstB = "";
+            string firstJ = "";
 
+            // We do a path treating each of this split's segment as the primary
+            // path. That's because a parallel signature answers the question
+            // "what is parallel to everything on this segment". Since that
+            // includes not just hte opposite direct segment but everyting on
+            // "outer" parallel segments (in the case of nested parallel
+            // segments) the two descendent paths of this split may not be the
+            // same
+            for (int pathIndex = 0; pathIndex < 2; pathIndex++)
+            {
+
+                // the A section is Nodes whose path is {this split's path}.{the current path index 0 or 1}
+                List<TraversalInfo> A = AllTIs.Where(ti =>
+                    ti.Path.Equals($"{tiSplit.Path}.{pathIndex}") &&
+                    !excludeCategories.Contains(ti.Node.Model.Category))
+                    .OrderBy(ti => ti.TraversalId).ToList();
+
+                // The S section is nodes N whose path matches the start of this
+                // split's path, for the length of N.path and whose column number is
+                // less than or equal to this split's column number
+                List<TraversalInfo> S = AllTIs.Where(ti =>
+                    tiSplit.Path.StartsWith(ti.Path) && ti.Column <= tiSplit.Column &&
+                    !excludeCategories.Contains(ti.Node.Model.Category))
+                    .OrderBy(ti => ti.TraversalId)
+                    .ToList();
+
+                // Matching join is the Node with the same path as this split and sequence number = this split's + 1
+                TraversalInfo? tiJoin = AllTIs.Where(ti => ti.Path.Equals(tiSplit.Path) && ti.SegmentSequence == tiSplit.SegmentSequence + 1).FirstOrDefault();
+
+                // The J section is nodes N whose path matches the start of this
+                // split's path, for the length of N.path and whose column number is
+                // greater than or equal to the matching join's column number
+                List<TraversalInfo> J = AllTIs.Where(ti =>
+                    tiSplit.Path.StartsWith(ti.Path) && ti.Column >= tiJoin.Column &&
+                    !excludeCategories.Contains(ti.Node.Model.Category))
+                    .OrderBy(ti => ti.TraversalId)
+                    .ToList();
+
+                // NOT SURE ABOUT THESE TWO YET.  SEEMS LIKE THEY ARE ADEQUATELY
+                // COVERED BY THE TRUE OR LINEAR PATHS FOR THE QUERIES I IMAGINING
+                // SUPPORT
+
+                //// the J section also gets anything WITHIN this split's A path but
+                //// downstream of the last node on A. This sounds confusing but it's
+                //// anything in a "sub split" of this split's A section but after the
+                //// nodes directly on the A path. Those nodes aren't parallel to our
+                //// A section, but they need to be represented as downstream of it in
+                //// our parallellism signature.
+                //int maxAColumn = A.Max(ti => ti.Column);
+                //J.AddRange(AllTIs.Where(ti =>
+                //    ti.Path.StartsWith(A[0].Path) && ti.Column > maxAColumn &&
+                //    !excludeCategories.Contains(ti.Node.Model.Category))
+                //    .ToList());
+
+                //// Likewise the S section also gets anything WITHIN this split's A
+                //// path but upstream of the first node on A. This will end up being
+                //// anything in a "sub split" of this split's A section but before
+                //// the nodes directly on the A path. Those nodes aren't parallel to
+                //// our A section, but they need to be represented as upstream of
+                //// it in our parallellism signature.
+                //int minAColumn = A.Min(ti => ti.Column);
+                //S.AddRange(AllTIs.Where(ti => ti.Path.StartsWith(A[0].Path) && ti.Column < minAColumn &&
+                //    !excludeCategories.Contains(ti.Node.Model.Category))
+                //    .ToList());
+
+                // the B section is two things combined...
+                //   ...Nodes whose path starts with this split's path but doesn't start with {this split's path}.{this path segment}...
+                List<TraversalInfo> B = AllTIs.Where(ti =>
+                    ti.Path.StartsWith(tiSplit.Path) && !ti.Path.StartsWith(A[0].Path) &&
+                    !excludeCategories.Contains(ti.Node.Model.Category) &&
+                    ti.Column > tiSplit.Column &&
+                    (null != tiJoin && ti.Column < tiJoin.Column))
+                    .OrderBy(ti => ti.TraversalId).ToList();
+
+                //   ...Anything not on this split's A path, and not already on the S, A, B, J sections
+                B.AddRange(AllTIs.Where(ti =>
+                    !S.Contains(ti) && !A.Contains(ti) && !B.Contains(ti) && !J.Contains(ti) &&
+                    !ti.Path.StartsWith(A[0].Path) &&
+                    !excludeCategories.Contains(ti.Node.Model.Category))
+                    .OrderBy(ti => ti.TraversalId).ToList());
+
+                bool RenderThisSignature = true;
+                if (0 == pathIndex)
+                {
+                    // in many presets, the two descendent parallel segments will yield the same signature, except with
+                    // the A and B parts reversed. 
+                    firstS = OneSegment(S);
+                    firstA = OneSegment(A);
+                    firstB = OneSegment(B);
+                    firstJ = OneSegment(J);
+                }
+                else
+                {
+                    bool sMatch = firstS.Equals(OneSegment(S));
+                    bool jMatch = firstJ.Equals(OneSegment(J));
+
+                    string tempA = OneSegment(A);
+                    string tempB = OneSegment(B);
+                    bool middleMatch = (firstA.Equals(tempA) && firstB.Equals(tempB)) || (firstA.Equals(tempB) && firstB.Equals(tempA));
+
+                    bool SegmentsAreTheSame = sMatch && jMatch && middleMatch;
+                    RenderThisSignature = !SegmentsAreTheSame;
+                }
+
+                if (RenderThisSignature)
+                {
+                    string finalSig = ParaChainSignature(S, A, B, J);
+                    if (!string.IsNullOrEmpty(finalSig))
+                        _paraChains.Add($"{tiSplit.Path} {finalSig}");
+                }
+            }
         }
         private void BuildOneParaChainOld(string segmentPath)
         {
@@ -256,34 +371,36 @@ namespace HXSearch.TraversalHandlers
             List<TraversalInfo> J
             )
         {
-            string? aSeg = null;
-            string? bSeg = null; ;
+            //string? aSeg = null;
+            //string? bSeg = null;
             StringBuilder sb = new(50);
             if (S.Count > 0)
             {
                 sb.Append(OneSegment(S));
-                sb.Append(" ((( ");
             }
+            sb.Append(" ((( ");
             if (A.Count > 0)
             {
-                aSeg = OneSegment(A);
-                sb.Append(aSeg);
-                sb.Append(" ||| ");
+                //aSeg = OneSegment(A);
+                //sb.Append(aSeg);
+                sb.Append(OneSegment(A));
             }
+            sb.Append(" ||| ");
             if (B.Count > 0)
             {
-                bSeg = OneSegment(A);
-                sb.Append(bSeg);
-                sb.Append(" ))) ");
+                //bSeg = OneSegment(B);
+                //sb.Append(bSeg);
+                sb.Append(OneSegment(B));
             }
+            sb.Append(" ))) ");
             if (J.Count > 0)
             {
                 sb.Append(OneSegment(J));
             }
-            if (string.IsNullOrEmpty(aSeg) || string.IsNullOrEmpty(bSeg))
-                return "";
-            else
-                return sb.ToString();
+            //if (string.IsNullOrEmpty(aSeg) || string.IsNullOrEmpty(bSeg))
+            //    return "";
+            //else
+            return sb.ToString();
         }
         private static string OneSegment(List<TraversalInfo> list)
         {
