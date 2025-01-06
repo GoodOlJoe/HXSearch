@@ -30,6 +30,15 @@ namespace HXSearch
         ];
         private readonly List<string> inputs =
         [
+            "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\2.81 2019 10 19(2)\\Setlist3-Songs and Amps\\Preset042-No Longer Slaves.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 31c.hlx",
+            "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\io 41.hlx",
+            // 2 DEEP NEST
+            "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.60 2023 04 26 3.60 Factory Presets\\Setlist8-TEMPLATES\\Preset011-4 Tone Switcher.hlx",
+
+            "!! STOP !!",
+
+
             // complex path, from "Knife Fight" preset
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\KnifeFight Paths.hlx",
             
@@ -38,9 +47,6 @@ namespace HXSearch
 
             // SABJ with no A
             "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.80 2024 12 16 with my presets\\Setlist1-FACTORY 1\\Preset050-BIG DUBB.hlx",
-
-            // 2 DEEP NEST
-            "E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System\\3.60 2023 04 26 3.60 Factory Presets\\Setlist8-TEMPLATES\\Preset011-4 Tone Switcher.hlx",
                 
             // AB AB but all from the same input and to same output
             "C:\\Users\\PCAUDI~1\\AppData\\Local\\Temp\\ABAB 1 In 1 Out.hlx",
@@ -110,8 +116,8 @@ namespace HXSearch
             //    Directory.GetFiles("E:\\All\\Documents\\Line 6\\Tones\\Helix\\Backup - Whole System", "*.hlx", SearchOption.AllDirectories)
             //    .Where(s => !s.Contains("New Preset"))
             //    )
-            //foreach (string fqn in inputs)
-            foreach (string fqn in ioTests)
+            foreach (string fqn in inputs)
+            //foreach (string fqn in ioTests)
             {
                 if (fqn.Equals("!! STOP !!")) return;
 
@@ -142,11 +148,12 @@ namespace HXSearch
                     cd.UnSubscribe(pre);
                     trueSig.UnSubscribe(pre);
 
-                    // one traversal to assign traversal IDs to each node, which
-                    // we use in the parallelism processing
                     TraversalHandlers.ParallelismSignature paraSigs = new(); paraSigs.Subscribe(pre);
                     pre.FullTraverse();
                     paraSigs.UnSubscribe(pre);
+                    int pathNum = 1;
+                    foreach (string s in paraSigs.Paths)
+                        File.AppendAllText(outFQN, $"Parallel Path {pathNum++}: {s}\n");
 
                     //=============================================
                     //==== linear traversals -- process all linear paths
@@ -156,7 +163,7 @@ namespace HXSearch
 
                     pre.LinearPathsTraverse();
 
-                    int pathNum = 1;
+                    pathNum = 1;
                     foreach (string s in linearSig.Paths)
                         File.AppendAllText(outFQN, $"Linear Path {pathNum++}: {s}\n");
 

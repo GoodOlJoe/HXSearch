@@ -17,10 +17,11 @@ namespace HXSearch
         internal delegate void PreTraversalHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset);
         internal delegate void PreRootHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node root);
         internal delegate void PreLinearPathHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node root);
-        internal delegate void SplitHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
-        internal delegate void EndParallelSegmentHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
-        internal delegate void JoinHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
-        internal delegate void NodeHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel);
+        internal delegate void SplitHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int depth);
+        internal delegate void EndParallelSegmentHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int depth);
+        internal delegate void JoinHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int depth);
+        internal delegate void NodeHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int depth);
+        internal delegate void EdgeHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Edge<Node> e, int depth);
         internal delegate void PostLinearPathHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, List<Node> path);
         internal delegate void PostRootHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node root);
         internal delegate void PostTraversalHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset);
@@ -32,6 +33,7 @@ namespace HXSearch
         public event EndParallelSegmentHandler? OnEndParallelSegment;
         public event JoinHandler? OnJoin;
         public event NodeHandler? OnProcessNode;
+        public event EdgeHandler? OnProcessEdge;
         public event PostLinearPathHandler? OnPostLinearPath;
         public event PostRootHandler? OnPostRoot;
         public event PostTraversalHandler? OnPostTraversal;
@@ -416,11 +418,15 @@ namespace HXSearch
             }
         }
         private static Node? FirstTarget(AdjacencyGraph<Node, Edge<Node>> gr, Node? n) => null == n ? null : gr.OutEdges(n).FirstOrDefault()?.Target;
-        private static void PushFirstTarget(Stack<Node?> stack, AdjacencyGraph<Node, Edge<Node>> gr, Node? n)
+        private static void PushFirstTarget(Stack<Node?> nodeStack, Stack<Edge<Node>> edgeStack, AdjacencyGraph<Node, Edge<Node>> gr, Node? n)
         {
             if (null == n) return;
             Edge<Node>? e = gr.OutEdges(n).FirstOrDefault();
-            if (null != e) stack.Push(e.Target);
+            if (null != e)
+            {
+                nodeStack.Push(e.Target);
+                edgeStack.Push(e);
+            };
         }
         #endregion Private methods
         #region Public interface methods
@@ -479,7 +485,8 @@ namespace HXSearch
         {
             AdjacencyGraph<Node, Edge<Node>> graph = presetGraph;
             int lvl = 1;
-            Stack<Node?> nextNode = new(); // stack of tuples: node to proc
+            Stack<Node?> nextNode = new();
+            Stack<Edge<Node>> nextEdge = new();
 
             OnPreTraversal?.Invoke(graph, this);
 
@@ -494,17 +501,25 @@ namespace HXSearch
             {
                 OnPreRoot?.Invoke(graph, this, rootInput);
                 nextNode.Push(rootInput);
+                nextEdge.Push(new Edge<Node>(rootInput, rootInput)); // to prime the loop, we push an edge with root as both source and target
+
                 while (nextNode.Count > 0)
                 {
                     Node? n = nextNode.Pop();
+                    Edge<Node> e = nextEdge.Pop();
 
                     if (n?.Block is HlxSplit split)
                     {
                         OnSplit?.Invoke(graph, this, n, lvl);
+                        OnProcessEdge?.Invoke(graph, this, e, lvl);
                         nextNode.Push(null); // this will mark the end of this split's outedges
+                        nextEdge.Push(e); // this will mark the end of this split's outedges
                         List<Edge<Node>> outEdges = [.. presetGraph.OutEdges(n).ToList()];
                         for (int i = outEdges.Count - 1; i >= 0; i--)
+                        {
                             nextNode.Push(outEdges[i].Target);
+                            nextEdge.Push(outEdges[i]);
+                        }
                         lvl++;
                     }
                     else if (n?.Block is HlxJoin)
@@ -512,26 +527,30 @@ namespace HXSearch
                         if (0 == nextNode.Count)
                         {
                             // a join with no preceding split is a no-op, just keep going
-                            PushFirstTarget(nextNode, presetGraph, n);
+                            PushFirstTarget(nextNode, nextEdge, presetGraph, n);
                         }
                         else if (null == nextNode.Peek())
                         {
                             // all of this join's splits have been traversed
                             nextNode.Pop(); // remove and discard the marker
+                            nextEdge.Pop(); // remove and discard the marker
                             lvl--;
                             OnJoin?.Invoke(graph, this, n, lvl);
-                            PushFirstTarget(nextNode, presetGraph, n);
+                            OnProcessEdge?.Invoke(graph, this, e, lvl);
+                            PushFirstTarget(nextNode, nextEdge, presetGraph, n);
                         }
                         else
                         {
                             // nothing to push, the traversal will continue from next item on the stack
                             OnEndParallelSegment?.Invoke(graph, this, n, lvl);
+                            OnProcessEdge?.Invoke(graph, this, e, lvl);
                         }
                     }
                     else
                     {
+                        if (null != e && e.Source != e.Target) OnProcessEdge?.Invoke(graph, this, e, lvl);
                         if (null != n) OnProcessNode?.Invoke(graph, this, n, lvl);
-                        PushFirstTarget(nextNode, presetGraph, n);
+                        PushFirstTarget(nextNode, nextEdge, presetGraph, n);
                     }
                 }
                 OnPostRoot?.Invoke(graph, this, rootInput);

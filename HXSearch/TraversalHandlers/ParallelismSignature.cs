@@ -1,13 +1,6 @@
-﻿using HXSearch.Hlx;
-using HXSearch.Models;
+﻿using HXSearch.Models;
 using QuikGraph;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security;
 using System.Text;
-using System.Threading.Tasks;
-using static HXSearch.Preset;
 
 namespace HXSearch.TraversalHandlers
 {
@@ -23,7 +16,8 @@ namespace HXSearch.TraversalHandlers
             public readonly string TraversalId;
             public int PathLevelCount => PathLevels.Length;
             private readonly string[] PathLevels;
-            public readonly string Ancestry;
+            public readonly string AncestryOfSplits;
+            public int Column = -1; // the left/right position in a visual layout
 
             public TraversalInfo(Node n)
             {
@@ -35,14 +29,14 @@ namespace HXSearch.TraversalHandlers
                 Path = string.Join('.', PathLevels);
                 ParentPath = string.Join('.', PathLevels[..^1]);
 
-                Ancestry = "";
+                AncestryOfSplits = "";
                 Node? sp = n.Split;
                 while (null != sp)
                 {
-                    Ancestry = $"{sp.TraversalId}:{Ancestry}";
+                    AncestryOfSplits = $"{sp.TraversalId}:{AncestryOfSplits}";
                     sp = sp.Split;
                 }
-                Ancestry = $"R:{Ancestry}";
+                AncestryOfSplits = $"R:{AncestryOfSplits}";
             }
             public override string ToString() => $"{Path}-{SegmentSequence}";
         }
@@ -57,10 +51,11 @@ namespace HXSearch.TraversalHandlers
         {
             preset.OnPreTraversal += PreTraversalHandler;
             preset.OnPreRoot += PreRootHandler;
-            preset.OnSplit += SplitHandler;
-            preset.OnEndParallelSegment += EndParallelSegmentHandler;
-            preset.OnJoin += JoinHandler;
-            preset.OnProcessNode += NodeHandler;
+            //preset.OnSplit += SplitHandler;
+            //preset.OnEndParallelSegment += EndParallelSegmentHandler;
+            //preset.OnJoin += JoinHandler;
+            //preset.OnProcessNode += NodeHandler;
+            preset.OnProcessEdge += EdgeHandler;
             preset.OnPostRoot += PostRootHandler;
             preset.OnPostTraversal += PostTraversalHandler;
         }
@@ -68,10 +63,11 @@ namespace HXSearch.TraversalHandlers
         {
             preset.OnPreTraversal -= PreTraversalHandler;
             preset.OnPreRoot -= PreRootHandler;
-            preset.OnSplit -= SplitHandler;
-            preset.OnEndParallelSegment -= EndParallelSegmentHandler;
-            preset.OnJoin -= JoinHandler;
-            preset.OnProcessNode -= NodeHandler;
+            //preset.OnSplit -= SplitHandler;
+            //preset.OnEndParallelSegment -= EndParallelSegmentHandler;
+            //preset.OnJoin -= JoinHandler;
+            //preset.OnProcessNode -= NodeHandler;
+            preset.OnProcessEdge -= EdgeHandler;
             preset.OnPostRoot -= PostRootHandler;
             preset.OnPostTraversal -= PostTraversalHandler;
         }
@@ -81,35 +77,79 @@ namespace HXSearch.TraversalHandlers
         internal void PreRootHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node root)
         {
             AllTIs.Clear();
+            TiByNode.Clear();
+            NodeByTraversalID.Clear();
         }
-        internal void SplitHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel)
+        internal void SplitHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int depth)
         {
-            NodeHandler(graph, preset, n, splitLevel);
+            //NodeHandler(graph, preset, n, depth);
         }
-        internal void EndParallelSegmentHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel)
+        internal void EndParallelSegmentHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int depth)
         {
         }
-        internal void JoinHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel)
+        internal void JoinHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int depth)
         {
-            NodeHandler(graph, preset, n, splitLevel);
+            //NodeHandler(graph, preset, n, depth);
         }
-        internal void NodeHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int splitLevel)
+        internal void EdgeHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Edge<Node> e, int depth)
+        {
+            if (string.IsNullOrEmpty(e.Target.TraversalId)) return;
+            RegisterNode(e.Source);
+            RegisterNode(e.Target);
+
+            TraversalInfo sourceTi = TiByNode[e.Source];
+            TraversalInfo targetTi = TiByNode[e.Target];
+
+            if (-1 == sourceTi.Column) sourceTi.Column = 0;
+            int nextCol = sourceTi.Column + 1;
+            targetTi.Column = e.Target.Model.Category switch
+            {
+                ModelCategory.Merge => Math.Max(nextCol, targetTi.Column),
+                _ => nextCol
+            };
+        }
+        private void RegisterNode(Node n)
         {
             if (string.IsNullOrEmpty(n.TraversalId)) return;
-            TraversalInfo ti = new TraversalInfo(n);
-            AllTIs.Add(ti);
-            TiByNode.Add(n, ti);
-            NodeByTraversalID.Add(ti.TraversalId, n);
+            if (!TiByNode.ContainsKey(n))
+            {
+                TraversalInfo ti = new TraversalInfo(n);
+                AllTIs.Add(ti);
+                TiByNode.Add(n, ti);
+                NodeByTraversalID.Add(ti.TraversalId, n);
+            }
+        }
+        internal void NodeHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node n, int depth)
+        {
+            //if (string.IsNullOrEmpty(n.TraversalId)) return;
+
+            //TraversalInfo ti = new TraversalInfo(n);
+            //AllTIs.Add(ti);
+            //TiByNode.Add(n, ti);
+            //NodeByTraversalID.Add(ti.TraversalId, n);
         }
         internal void PostRootHandler(AdjacencyGraph<Node, Edge<Node>> graph, Preset preset, Node root)
         {
-            List<string> allSegments = new(10);
-            foreach (TraversalInfo ti in AllTIs.OrderBy(ti => ti.Path))
+            //List<string> allSegments = new(10);
+            //foreach (TraversalInfo ti in AllTIs.OrderBy(ti => ti.Path))
+            //{
+            //    if (!allSegments.Contains(ti.Path))
+            //    {
+            //        allSegments.Add(ti.Path);
+            //        BuildOneParaChainOld(ti.Path);
+            //    }
+            //}
+            List<ModelCategory> nonContent = [ModelCategory.Split, ModelCategory.Input, ModelCategory.Output, ModelCategory.Merge];
+            foreach (Node thisSplit in graph.Vertices.Where(n => n.Model.Category == ModelCategory.Split))
             {
-                if (!allSegments.Contains(ti.Path))
+                if (graph.Vertices.Where(n => !nonContent.Contains(n.Model.Category) && n.Split == thisSplit).Any())
                 {
-                    allSegments.Add(ti.Path);
-                    BuildOneParaChain(ti.Path);
+                    // If there are any "real" content nodes that refer to this
+                    // split as a parent, then we need to do a parallelism
+                    // signature for this split. That is, we don't need to do
+                    // splits that have only other splits or ins/outs on either
+                    // of their immediate segments.
+                    BuildOneParaChain(TiByNode[thisSplit]);
                 }
             }
         }
@@ -134,7 +174,12 @@ namespace HXSearch.TraversalHandlers
             }
             return isPredecessor;
         }
-        private void BuildOneParaChain(string segmentPath)
+        private void BuildOneParaChain(TraversalInfo tiSplit)
+        {
+
+
+        }
+        private void BuildOneParaChainOld(string segmentPath)
         {
 
             // A is the actual modules on this parallel segment of a split, in
@@ -142,13 +187,14 @@ namespace HXSearch.TraversalHandlers
             List<TraversalInfo> A = AllTIs.Where(ti => ti.Path.Equals(segmentPath)).OrderBy(ti => ti.TraversalId).ToList();
             TraversalInfo tiFirst = A[0];
             if (null == tiFirst.Node.Split) return;
+            //if (0 == tiFirst.Node.Depth) return; // this reads clearer but null checking the Split property satisifes compiler nullability checks betters
 
 
             // B is the list of modules effectively parallel to the given segment
             // This is modules truly parallel (the other side of the same split our segment came from)
             List<TraversalInfo> B = new(20);
             B.AddRange(AllTIs.Where(ti =>
-                    ti.Ancestry.Equals(tiFirst.Ancestry) &&
+                    ti.AncestryOfSplits.Equals(tiFirst.AncestryOfSplits) &&
                     !ti.Path.Equals(tiFirst.Path))
                     .OrderBy(ti => ti.TraversalId));
 
@@ -191,7 +237,9 @@ namespace HXSearch.TraversalHandlers
             //    if (J[i].Node.Model.Category == ModelCategory.Merge)
             //        J.RemoveAt(i);
 
-            _paraChains.Add(ParaChainSignature(S, A, B, J));
+            string finalSig = ParaChainSignature(S, A, B, J);
+            if (!string.IsNullOrEmpty(finalSig))
+                _paraChains.Add($"{segmentPath} {finalSig}");
         }
         private static void StripNodes(List<TraversalInfo> list, List<ModelCategory> categories)
         {
@@ -208,31 +256,39 @@ namespace HXSearch.TraversalHandlers
             List<TraversalInfo> J
             )
         {
+            string? aSeg = null;
+            string? bSeg = null; ;
             StringBuilder sb = new(50);
             if (S.Count > 0)
             {
                 sb.Append(OneSegment(S));
-                sb.Append("(");
+                sb.Append(" ((( ");
             }
             if (A.Count > 0)
             {
-                sb.Append(OneSegment(A));
-                sb.Append("|");
+                aSeg = OneSegment(A);
+                sb.Append(aSeg);
+                sb.Append(" ||| ");
             }
             if (B.Count > 0)
             {
-                sb.Append(OneSegment(B));
-                sb.Append(")");
+                bSeg = OneSegment(A);
+                sb.Append(bSeg);
+                sb.Append(" ))) ");
             }
             if (J.Count > 0)
             {
                 sb.Append(OneSegment(J));
             }
-            return sb.ToString();
+            if (string.IsNullOrEmpty(aSeg) || string.IsNullOrEmpty(bSeg))
+                return "";
+            else
+                return sb.ToString();
         }
         private static string OneSegment(List<TraversalInfo> list)
         {
             StripNodes(list, [ModelCategory.Split, ModelCategory.Merge]);
+            //StripNodes(list, [ModelCategory.Split, ModelCategory.Merge, ModelCategory.Input, ModelCategory.Output]);
 
             if (list.Count == 0) return "";
 

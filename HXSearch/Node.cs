@@ -18,7 +18,8 @@ namespace HXSearch
         public int OutputPort = -1;
         public int Depth = -1;
         //public override string ToString() => $"{SerialNumber} [T {TraversalId}] {ModelString} [Depth {Depth}] [Output {OutputPort}]";
-        public override string ToString() => $"{SerialNumber} [T {TraversalId}] {ModelString} [Split {Split?.SerialNumber}] [Output {OutputPort}]".PadRight(54);
+        //public override string ToString() => $"{SerialNumber} [T {TraversalId}] {ModelString} [Split {Split?.SerialNumber}] [Output {OutputPort}]".PadRight(54);
+        public override string ToString() => $"{SerialNumber} [T {TraversalId}] {ModelString}".PadRight(54);
         //public override string ToString() => $"{ModelString} [Split {Split?.SerialNumber}] [Output {OutputPort}]";
         //public override string ToString() => ModelString;
         public string ModelString => Model.Category switch
